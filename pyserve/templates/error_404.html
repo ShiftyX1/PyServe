@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>404 Not Found - PyServe</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Tahoma, Arial, sans-serif;
+            color: #333;
+            background-color: #f1f1f1;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100%;
+            padding: 0 20px;
+        }
+        
+        .error-wrapper {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+            padding: 40px 20px;
+            text-align: center;
+        }
+        
+        .error-code {
+            font-size: 120px;
+            font-weight: bold;
+            margin: 0;
+            color: #3182ce;
+            line-height: 1;
+        }
+        
+        .error-title {
+            margin: 10px 0 20px;
+            color: #2d3748;
+            font-size: 28px;
+            font-weight: normal;
+        }
+        
+        .error-divider {
+            height: 2px;
+            width: 60px;
+            background-color: #3182ce;
+            margin: 20px auto;
+        }
+        
+        .error-message {
+            color: #4a5568;
+            margin-bottom: 30px;
+            font-size: 16px;
+            line-height: 1.5;
+        }
+        
+        .back-button {
+            display: inline-block;
+            background-color: #3182ce;
+            color: white;
+            font-size: 16px;
+            padding: 12px 24px;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background-color 0.2s ease-in-out;
+        }
+        
+        .back-button:hover {
+            background-color: #2b6cb0;
+        }
+        
+        .server-info {
+            margin-top: 30px;
+            font-size: 12px;
+            color: #a0aec0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-wrapper">
+            <h1 class="error-code">404</h1>
+            <h2 class="error-title">Resource is missing</h2>
+            <div class="error-divider"></div>
+            <p class="error-message">{{error_details}}</p>
+            <a href="/" class="back-button">Back to root</a>
+            <div class="server-info">PyServe</div>
+        </div>
+    </div>
+</body>
+</html>

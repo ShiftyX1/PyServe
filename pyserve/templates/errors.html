@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{status_code}} {{status_text}} - PyServe</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Tahoma, Arial, sans-serif;
+            color: #333;
+            background-color: #f1f1f1;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            width: 100%;
+        }
+        
+        .error-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            margin: auto;
+            max-width: 600px;
+            padding: 40px 20px;
+        }
+        
+        .error-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #2d3748;
+        }
+        
+        .error-code {
+            font-size: 120px;
+            font-weight: bold;
+            margin: 0;
+            color: #1a202c;
+            line-height: 1;
+        }
+        
+        .error-divider {
+            height: 2px;
+            width: 60px;
+            background-color: #e53e3e;
+            margin: 20px 0;
+        }
+        
+        .error-message {
+            font-size: 18px;
+            text-align: center;
+            color: #4a5568;
+            margin-bottom: 20px;
+        }
+        
+        .error-details {
+            font-size: 14px;
+            color: #718096;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .back-button {
+            display: inline-block;
+            background-color: #2b6cb0;
+            color: white;
+            font-size: 16px;
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            transition: background-color 0.2s ease-in-out;
+        }
+        
+        .back-button:hover {
+            background-color: #2c5282;
+        }
+        
+        footer {
+            width: 100%;
+            margin-top: auto;
+            padding: 20px 0;
+            text-align: center;
+            font-size: 12px;
+            color: #a0aec0;
+            background-color: #f7fafc;
+            border-top: 1px solid #edf2f7;
+        }
+        
+        /* Custom styling for specific errors */
+        .error-404 .error-code { color: #3182ce; }
+        .error-404 .error-divider { background-color: #3182ce; }
+        
+        .error-403 .error-code { color: #dd6b20; }
+        .error-403 .error-divider { background-color: #dd6b20; }
+        
+        .error-500 .error-code { color: #e53e3e; }
+        .error-500 .error-divider { background-color: #e53e3e; }
+        
+        .error-502 .error-code { color: #805ad5; }
+        .error-502 .error-divider { background-color: #805ad5; }
+        
+        .error-503 .error-code { color: #d69e2e; }
+        .error-503 .error-divider { background-color: #d69e2e; }
+        
+        .error-504 .error-code { color: #38a169; }
+        .error-504 .error-divider { background-color: #38a169; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="error-container error-{{status_code}}">
+            <div class="error-title">PyServe</div>
+            <h1 class="error-code">{{status_code}}</h1>
+            <div class="error-divider"></div>
+            <p class="error-message">{{status_text}}</p>
+            <p class="error-details">{{error_details}}</p>
+            <a href="/" class="back-button">Back to root</a>
+        </div>
+        <footer>
+            <p>PyServe</p>
+        </footer>
+    </div>
+</body>
+</html>
