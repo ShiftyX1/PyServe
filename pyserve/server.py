@@ -53,6 +53,10 @@ class HTTPResponse:
         if 'content-type' not in self.headers:
             self.headers['content-type'] = 'text/html; charset=utf-8'
 
+        if 'server' not in self.headers:
+            from pyserve import __version__
+            self.headers['server'] = f'PyServe/{__version__}'
+
     def to_bytes(self):
         status_line = f"HTTP/1.1 {self.status_code} {HTTPStatus(self.status_code).phrase}\r\n"
         header_lines = ''.join(f"{k}: {v}\r\n" for k, v in self.headers.items())
