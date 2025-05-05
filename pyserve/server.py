@@ -5,7 +5,7 @@ from urllib.parse import parse_qs, urlparse
 from .logging import PyServeLogger
 from .template import TemplateEngine
 from http import HTTPStatus
-
+from .utils import get_redirections
 class HTTPRequest:
     def __init__(self, raw_request):
         self.method = None
@@ -109,7 +109,6 @@ class TCPServer:
                 return
                 
             response = self.handle_request(request_data, client_address)
-            print(response)
             client_socket.sendall(response.to_bytes())
         except Exception as e:
             self.logger.error(f"Error handling client {client_address}: {e}")
@@ -124,11 +123,12 @@ class TCPServer:
 
 
 class HTTPServer(TCPServer):
-    def __init__(self, host, port, static_dir="./static", template_dir="./templates", backlog=5):
+    def __init__(self, host, port, static_dir="./static", template_dir="./templates", backlog=5, debug=False, redirections: list = []):
         super().__init__(host, port, backlog)
         self.static_dir = os.path.abspath(static_dir)
         self.template_engine = TemplateEngine(template_dir)
-        
+        self.debug = debug
+        self.redirections: dict = get_redirections(redirections)
         os.makedirs(self.static_dir, exist_ok=True)
         self.logger.info(f"Static files directory: {self.static_dir}")
         
@@ -152,8 +152,11 @@ class HTTPServer(TCPServer):
             return HTTPResponse(400, body=b"Bad Request")
             
         self.logger.info(f"Received {request.method} request for {request.path} from {client_address[0]}:{client_address[1]}")
-        
-        if request.path == '/':
+
+        if request.path in self.redirections:
+            self.logger.info(f"Redirecting {request.path} to {self.redirections[request.path]}")
+            return self.handle_redirection(request)
+        elif request.path == '/':
             return self.handle_root(request)
         elif request.path.startswith('/static/'):
             return self.handle_static_file(request)
@@ -222,7 +225,8 @@ class HTTPServer(TCPServer):
                 'content-length': str(len(content))
             }
             
-            self.logger.debug(f"Serving static file: {file_path} ({content_type})")
+            if self.debug:
+                self.logger.debug(f"Serving static file: {file_path} ({content_type})")
             return HTTPResponse(200, headers=headers, body=content)
         except Exception as e:
             self.logger.error(f"Error serving {file_path}: {e}")
@@ -237,3 +241,6 @@ class HTTPServer(TCPServer):
     
     def forward_proxy(self, request):
         pass
+
+    def handle_redirection(self, request):
+        return HTTPResponse(302, headers={'Location': self.redirections[request.path]})

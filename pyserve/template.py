@@ -6,7 +6,6 @@ class TemplateEngine:
     
     def __init__(self, templates_dir="./pyserve/templates"):
         self.templates_dir = os.path.abspath(templates_dir)
-        print(f"Templates directory: {self.templates_dir}")
         os.makedirs(self.templates_dir, exist_ok=True)
         
     def render_string(self, template_string: str, context: Dict[str, Any]) -> str:

@@ -13,19 +13,24 @@ class Configuration:
         
         self.logging_config = config.get('logging', {})
 
+        self.redirections: list = self.server_config.get('redirect_instructions', [])
+
     def create_config(self):
         default_config = {
             "server": {
                 "host": "127.0.0.1",
-                "port": 8000,
-                "backlog": 5
+                "port": 80,
+                "backlog": 5,
+                "redirect_instructions": [
+                    {"/home": "/index.html"}
+                ]
             },
             "http": {
                 "static_dir": "./static",
                 "templates_dir": "./templates"
             },
             "logging": {
-                "level": "DEBUG",
+                "level": "INFO",
                 "log_file": "./logs/pyserve.log",
                 "console_output": True
             }

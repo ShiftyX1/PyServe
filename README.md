@@ -16,6 +16,7 @@ I developed PyServe as a learning project to understand the principles of HTTP s
 - Customizable logging with colored terminal output
 - Flexible configuration via YAML files or command line arguments
 - Styled error pages (404, 500, 403, etc.)
+- Redirect instructions (http 301)
 
 ## Getting Started
 
@@ -62,6 +63,8 @@ server:
   host: 127.0.0.1
   port: 8000
   backlog: 5
+  redirect_instructions:
+  - /home: /index.html # /from: /to
 
 http:
   static_dir: ./static
@@ -89,7 +92,7 @@ This project helps learn the following concepts:
 
 - Adding HTTPS support
 - Implementing basic authentication
-- Adding request routing capabilities
+- Adding request routing capabilities (WIP right now)
 - WebSocket support
 - Static file caching
 - Adding Gzip compression

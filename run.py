@@ -38,13 +38,14 @@ Examples:
                         help='Directory for template files (overrides config)')
     parser.add_argument('-v', '--version', action='store_true',
                         help='Show PyServe version and exit')
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='Enable debug mode (more verbose logging)')
     
     return parser.parse_args()
 
 def setup_signal_handlers(server):
     """Setup signal handlers for graceful shutdown"""
     def signal_handler(sig, frame):
-        print("\nShutting down server...")
         server.close()
         sys.exit(0)
     
@@ -79,9 +80,11 @@ def run():
     
     # Create and start the server
     try:
-        server = HTTPServer(host, port, static_dir, template_dir, backlog)
+        server = HTTPServer(host, port, static_dir, template_dir, backlog, True if args.debug else False, config.redirections)
         setup_signal_handlers(server)
         logger.info(f"PyServe v1.0.0 starting")
+        if args.debug:
+            logger.debug(f"Configuration loaded: {config.server_config}")
         logger.info(f"Server running at http://{host}:{port}/")
         logger.info(f"Static files directory: {os.path.abspath(static_dir)}")
         logger.info(f"Template files directory: {os.path.abspath(template_dir)}")
