@@ -1,0 +1,242 @@
+<div class="header-banner">
+    <h1>Configuration</h1>
+    <p>Learn how to configure PyServe using YAML files</p>
+</div>
+
+<div class="card">
+    <h2>Configuration Overview</h2>
+    <p>PyServe uses YAML configuration files for setting up the server. By default, the server looks for a <code>config.yaml</code> file in the current directory, but you can specify a different location using the <code>-c</code> or <code>--config</code> option.</p>
+    
+    <div class="alert alert-info">
+        <p><strong>Note:</strong> Command line arguments always override configuration file settings.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Default Configuration</h2>
+    <p>When you first run PyServe, it creates a default <code>config.yaml</code> file with the following structure:</p>
+    
+    <div class="code-block">
+        <pre><code>http:
+  static_dir: ./static
+  templates_dir: ./templates
+logging:
+  console_output: true
+  level: INFO
+  log_file: ./logs/pyserve.log
+server:
+  backlog: 5
+  host: 127.0.0.1
+  port: 8000
+  redirect_instructions:
+    - /home: /index.html
+  reverse_proxy:
+    - path: /api
+      host: localhost
+      port: 3000</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Configuration Sections</h2>
+    
+    <h3>Server Configuration</h3>
+    <p>The <code>server</code> section contains core server settings:</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Description</th>
+                <th>Default</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>host</code></td>
+                <td>Host to bind the server to</td>
+                <td>127.0.0.1</td>
+            </tr>
+            <tr>
+                <td><code>port</code></td>
+                <td>Port number to listen on</td>
+                <td>8000</td>
+            </tr>
+            <tr>
+                <td><code>backlog</code></td>
+                <td>Maximum connection queue size</td>
+                <td>5</td>
+            </tr>
+            <tr>
+                <td><code>redirect_instructions</code></td>
+                <td>URL redirection rules</td>
+                <td>See example below</td>
+            </tr>
+            <tr>
+                <td><code>reverse_proxy</code></td>
+                <td>Reverse proxy configuration</td>
+                <td>See example below</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <h3>HTTP Configuration</h3>
+    <p>The <code>http</code> section configures how the HTTP server handles files:</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Description</th>
+                <th>Default</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>static_dir</code></td>
+                <td>Directory for static files</td>
+                <td>./static</td>
+            </tr>
+            <tr>
+                <td><code>templates_dir</code></td>
+                <td>Directory for template files</td>
+                <td>./templates</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <h3>Logging Configuration</h3>
+    <p>The <code>logging</code> section controls the server logging behavior:</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Description</th>
+                <th>Default</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>level</code></td>
+                <td>Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)</td>
+                <td>INFO</td>
+            </tr>
+            <tr>
+                <td><code>log_file</code></td>
+                <td>Path to the log file</td>
+                <td>./logs/pyserve.log</td>
+            </tr>
+            <tr>
+                <td><code>console_output</code></td>
+                <td>Whether to output logs to console</td>
+                <td>true</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>URL Redirection Configuration</h2>
+    <p>Configure URL redirects using the <code>redirect_instructions</code> setting:</p>
+    
+    <div class="code-block">
+        <pre><code>server:
+  redirect_instructions:
+    - /home: /index.html
+    - /blog: https://example.com/blog
+    - /docs: /documentation.html</code></pre>
+    </div>
+    
+    <p>This configuration will:</p>
+    <ul>
+        <li>Redirect <code>/home</code> to <code>/index.html</code> on the same server</li>
+        <li>Redirect <code>/blog</code> to <code>https://example.com/blog</code> (external URL)</li>
+        <li>Redirect <code>/docs</code> to <code>/documentation.html</code> on the same server</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Reverse Proxy Configuration</h2>
+    <p>Configure reverse proxy settings using the <code>reverse_proxy</code> section:</p>
+    
+    <div class="code-block">
+        <pre><code>server:
+  reverse_proxy:
+    - path: /api
+      host: localhost
+      port: 3000
+    - path: /admin
+      host: localhost
+      port: 8080</code></pre>
+    </div>
+    
+    <p>This configuration will:</p>
+    <ul>
+        <li>Forward all requests starting with <code>/api</code> to <code>localhost:3000</code></li>
+        <li>Forward all requests starting with <code>/admin</code> to <code>localhost:8080</code></li>
+    </ul>
+    
+    <div class="alert alert-info">
+        <p><strong>Note:</strong> PyServe will automatically add appropriate headers like <code>X-Forwarded-For</code>, <code>X-Forwarded-Host</code>, and <code>X-Forwarded-Proto</code> to the proxied requests.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Example: Advanced Configuration</h2>
+    <p>Here's an example of a more complex configuration file:</p>
+    
+    <div class="code-block">
+        <pre><code>http:
+  static_dir: ./public
+  templates_dir: ./views
+logging:
+  console_output: true
+  level: DEBUG
+  log_file: ./logs/detailed.log
+server:
+  backlog: 10
+  host: 0.0.0.0
+  port: 80
+  redirect_instructions:
+    - /home: /index.html
+    - /contact: /contact.html
+    - /news: https://example.com/blog
+  reverse_proxy:
+    - path: /api/v1
+      host: api-server
+      port: 8001
+    - path: /admin
+      host: admin-panel
+      port: 8002
+    - path: /dashboard
+      host: dashboard-service
+      port: 3000</code></pre>
+    </div>
+    
+    <p>This configuration:</p>
+    <ul>
+        <li>Serves static files from <code>./public</code> and templates from <code>./views</code></li>
+        <li>Uses detailed DEBUG level logging with output to console and file</li>
+        <li>Listens on all interfaces (0.0.0.0) on port 80 with a connection backlog of 10</li>
+        <li>Sets up three redirects for various paths</li>
+        <li>Configures three different reverse proxy endpoints for different services</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Testing Your Configuration</h2>
+    <p>PyServe includes a built-in configuration testing tool. To verify your configuration file:</p>
+    
+    <div class="code-block">
+        <pre><code>python run.py --test configuration</code></pre>
+    </div>
+    
+    <p>This will check your configuration file and return one of the following exit codes:</p>
+    <ul>
+        <li><code>0</code> - All tests passed successfully</li>
+        <li><code>1</code> - Optional configuration tests failed</li>
+        <li><code>2</code> - Mandatory configuration tests failed</li>
+        <li><code>3</code> - Configuration file could not be loaded</li>
+    </ul>
+</div>

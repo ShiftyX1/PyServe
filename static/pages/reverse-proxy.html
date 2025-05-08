@@ -1,0 +1,218 @@
+<div class="header-banner">
+    <h1>Reverse Proxy</h1>
+    <p>Learn how to use PyServe as a reverse proxy for other services</p>
+</div>
+
+<div class="card">
+    <h2>Reverse Proxy Overview</h2>
+    <p>
+        A reverse proxy acts as an intermediary server that forwards client requests to appropriate backend servers
+        and returns the server's response to the client. PyServe includes a built-in reverse proxy feature that
+        allows you to forward requests to other services based on URL paths.
+    </p>
+    
+    <div class="alert alert-info">
+        <p><strong>Common Use Cases:</strong> Reverse proxies are commonly used for load balancing, SSL termination, caching, 
+        serving content from multiple applications under a single domain, and protecting backend servers.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Configuring Reverse Proxy</h2>
+    <p>There are two ways to configure the reverse proxy functionality in PyServe:</p>
+    
+    <h3>1. Using the Configuration File</h3>
+    <p>Add a <code>reverse_proxy</code> section to your <code>config.yaml</code> file:</p>
+    
+    <div class="code-block">
+        <pre><code>server:
+  # Other server settings...
+  reverse_proxy:
+    - path: /api
+      host: localhost
+      port: 3000
+    - path: /admin
+      host: localhost
+      port: 8080</code></pre>
+    </div>
+    
+    <h3>2. Using Command Line Arguments</h3>
+    <p>Use the <code>--proxy</code> option when starting PyServe:</p>
+    
+    <div class="code-block">
+        <pre><code>python run.py --proxy localhost:3000/api</code></pre>
+    </div>
+    
+    <p>The format for the proxy argument is: <code>host:port/path</code></p>
+    <ul>
+        <li><code>host</code>: The hostname or IP address of the target server</li>
+        <li><code>port</code>: The port number of the target server</li>
+        <li><code>path</code>: The URL path prefix to proxy (optional, defaults to "/")</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>How Reverse Proxy Works</h2>
+    
+    <p>When a request is received by PyServe, it checks if the request path matches any of the configured proxy paths:</p>
+    
+    <ol>
+        <li>If a match is found, PyServe forwards the request to the corresponding backend server</li>
+        <li>The backend server processes the request and returns a response</li>
+        <li>PyServe receives the response and forwards it back to the client</li>
+    </ol>
+    
+    <div class="alert alert-info">
+        <p><strong>Path Matching:</strong> PyServe matches paths by prefix. For example, if you configure a proxy for 
+        <code>/api</code>, any request path that starts with <code>/api</code> (like <code>/api/users</code> or 
+        <code>/api/products/123</code>) will be forwarded to the target server.</p>
+    </div>
+    
+    <h3>Request Headers</h3>
+    <p>PyServe adds the following headers to proxied requests:</p>
+    
+    <ul>
+        <li><code>X-Forwarded-For</code>: The client's IP address</li>
+        <li><code>X-Forwarded-Host</code>: The original host requested by the client</li>
+        <li><code>X-Forwarded-Proto</code>: The protocol used by the client (http)</li>
+    </ul>
+    
+    <h3>Path Rewriting</h3>
+    <p>
+        When a request is proxied, PyServe removes the matching prefix from the path. For example, if you configure
+        a proxy for <code>/api</code> to <code>localhost:3000</code>, a request to <code>/api/users</code> will be
+        forwarded to <code>localhost:3000/users</code>.
+    </p>
+</div>
+
+<div class="card">
+    <h2>Examples</h2>
+    
+    <h3>Example 1: API Backend</h3>
+    <p>Forward API requests to a Node.js server running on port 3000:</p>
+    
+    <div class="code-block">
+        <pre><code>server:
+  reverse_proxy:
+    - path: /api
+      host: localhost
+      port: 3000</code></pre>
+    </div>
+    
+    <p>With this configuration:</p>
+    <ul>
+        <li>Request to <code>http://yourdomain.com/api/users</code></li>
+        <li>Will be forwarded to <code>http://localhost:3000/users</code></li>
+    </ul>
+    
+    <h3>Example 2: Multiple Services</h3>
+    <p>Proxy requests to different backend services based on path:</p>
+    
+    <div class="code-block">
+        <pre><code>server:
+  reverse_proxy:
+    - path: /api
+      host: api-server
+      port: 8001
+    - path: /admin
+      host: admin-panel
+      port: 8002
+    - path: /app
+      host: web-app
+      port: 3000</code></pre>
+    </div>
+    
+    <h3>Example 3: Using Command Line</h3>
+    <p>Start PyServe with a reverse proxy to an API server:</p>
+    
+    <div class="code-block">
+        <pre><code>python run.py --proxy api-server:8001/api</code></pre>
+    </div>
+    
+    <p>This is equivalent to the first example in configuration format.</p>
+</div>
+
+<div class="card">
+    <h2>Handling Content Encoding</h2>
+    <p>
+        PyServe automatically handles <code>gzip</code> compressed responses from backend servers. If a response
+        is compressed with gzip, PyServe will decompress it, update the <code>Content-Length</code> header, and
+        remove the <code>Content-Encoding</code> header before forwarding the response to the client.
+    </p>
+    
+    <div class="alert alert-info">
+        <p><strong>Note:</strong> This behavior ensures that clients receive properly formatted responses even if they
+        don't support compression or if the backend server applies compression inconsistently.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Best Practices</h2>
+    
+    <h3>Security Considerations</h3>
+    <ul>
+        <li>Only proxy to trusted backend servers</li>
+        <li>Consider using HTTPS for connections to backend servers in production</li>
+        <li>Be careful about exposing internal services publicly</li>
+    </ul>
+    
+    <h3>Performance Tips</h3>
+    <ul>
+        <li>Keep backend servers close to the proxy to minimize latency</li>
+        <li>Consider using a dedicated reverse proxy solution (like Nginx or HAProxy) for high-traffic production environments</li>
+    </ul>
+    
+    <h3>Deployment Architecture</h3>
+    <p>Common deployment patterns with reverse proxies:</p>
+    
+    <ol>
+        <li><strong>API Gateway</strong>: PyServe serves static content and forwards API requests to a backend service</li>
+        <li><strong>Microservices</strong>: PyServe routes requests to different microservices based on URL paths</li>
+        <li><strong>Development Environment</strong>: PyServe serves as a unified entry point for a frontend and backend running on different ports</li>
+    </ol>
+</div>
+
+<div class="card">
+    <h2>Limitations</h2>
+    <p>PyServe's reverse proxy implementation has some limitations compared to dedicated reverse proxy servers:</p>
+    
+    <ul>
+        <li>No built-in load balancing across multiple backend instances</li>
+        <li>Limited handling of WebSocket connections</li>
+        <li>No built-in caching mechanism</li>
+        <li>Limited header manipulation capabilities</li>
+    </ul>
+    
+    <div class="alert alert-warning">
+        <p><strong>Production Use:</strong> While PyServe's reverse proxy works well for development and internal use,
+        consider a dedicated solution like Nginx, HAProxy, or Traefik for production environments with high traffic
+        or complex routing needs.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Troubleshooting</h2>
+    
+    <h3>Common Issues</h3>
+    
+    <h4>502 Bad Gateway</h4>
+    <p>
+        This typically means PyServe couldn't connect to the backend server. Check that the backend
+        server is running and accessible from the PyServe instance.
+    </p>
+    
+    <h4>Path Prefix Issues</h4>
+    <p>
+        If your backend application expects to run at a specific path prefix, you might need to configure
+        it accordingly or use a rewrite rule to add the prefix back.
+    </p>
+    
+    <h4>Debug Logging</h4>
+    <p>
+        Enable debug mode to see detailed logs about proxy requests:
+    </p>
+    
+    <div class="code-block">
+        <pre><code>python run.py -d --proxy localhost:3000/api</code></pre>
+    </div>
+</div>

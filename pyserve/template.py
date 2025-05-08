@@ -24,7 +24,7 @@ class TemplateEngine:
             
             return self.render_string(template_string, context)
         except FileNotFoundError:
-            return f"Template not found: {template_name}"
+            return self.render_template("errors.html", context)
         except Exception as e:
             return f"Error rendering template: {str(e)}"
             

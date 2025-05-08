@@ -1,0 +1,146 @@
+<div class="header-banner">
+    <h1>Getting Started</h1>
+    <p>Quick guide to get up and running with PyServe</p>
+</div>
+
+<div class="card">
+    <h2>Installation</h2>
+    <p>PyServe is a pure Python application with minimal dependencies. Follow these steps to install:</p>
+    
+    <ol>
+        <li>Clone the repository:
+            <div class="code-block">
+                <pre><code>git clone https://github.com/yourusername/pyserve.git
+cd pyserve</code></pre>
+            </div>
+        </li>
+        <li>Install dependencies:
+            <div class="code-block">
+                <pre><code>pip install pyyaml</code></pre>
+            </div>
+        </li>
+    </ol>
+    
+    <div class="alert alert-info">
+        <p><strong>Note:</strong> PyServe is designed to use only the Python Standard Library plus PyYAML for configuration, keeping external dependencies to a minimum.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Basic Usage</h2>
+    <p>Starting the server with default settings:</p>
+    
+    <div class="code-block">
+        <pre><code>python run.py</code></pre>
+    </div>
+    
+    <p>This will start PyServe with the following default configuration:</p>
+    <ul>
+        <li>Host: 127.0.0.1 (localhost)</li>
+        <li>Port: 8000</li>
+        <li>Static files directory: ./static</li>
+        <li>Templates directory: ./templates</li>
+    </ul>
+    
+    <p>You can now access your server at <a href="http://localhost:8000" target="_blank">http://localhost:8000</a></p>
+</div>
+
+<div class="card">
+    <h2>Command Line Options</h2>
+    <p>PyServe supports various command line options to override the configuration:</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Description</th>
+                <th>Example</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>-c, --config</code></td>
+                <td>Path to configuration file</td>
+                <td><code>python run.py -c ./my_config.yaml</code></td>
+            </tr>
+            <tr>
+                <td><code>-p, --port</code></td>
+                <td>Port to run the server on</td>
+                <td><code>python run.py -p 8080</code></td>
+            </tr>
+            <tr>
+                <td><code>-H, --host</code></td>
+                <td>Host to bind to</td>
+                <td><code>python run.py -H 0.0.0.0</code></td>
+            </tr>
+            <tr>
+                <td><code>-s, --static</code></td>
+                <td>Directory for static files</td>
+                <td><code>python run.py -s ./www/static</code></td>
+            </tr>
+            <tr>
+                <td><code>-t, --templates</code></td>
+                <td>Directory for template files</td>
+                <td><code>python run.py -t ./www/templates</code></td>
+            </tr>
+            <tr>
+                <td><code>-v, --version</code></td>
+                <td>Show PyServe version and exit</td>
+                <td><code>python run.py -v</code></td>
+            </tr>
+            <tr>
+                <td><code>-d, --debug</code></td>
+                <td>Enable debug mode</td>
+                <td><code>python run.py -d</code></td>
+            </tr>
+            <tr>
+                <td><code>--proxy</code></td>
+                <td>Configure reverse proxy</td>
+                <td><code>python run.py --proxy localhost:3000/api</code></td>
+            </tr>
+            <tr>
+                <td><code>--test</code></td>
+                <td>Run tests</td>
+                <td><code>python run.py --test all</code></td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Examples</h2>
+    
+    <h3>Running on all interfaces</h3>
+    <p>To make the server accessible from other devices on your network:</p>
+    <div class="code-block">
+        <pre><code>python run.py -H 0.0.0.0 -p 8000</code></pre>
+    </div>
+    
+    <h3>Using custom directories</h3>
+    <p>If your static files and templates are in a different location:</p>
+    <div class="code-block">
+        <pre><code>python run.py -s ./www/public -t ./www/views</code></pre>
+    </div>
+    
+    <h3>Setting up a reverse proxy</h3>
+    <p>To proxy requests to a backend API server:</p>
+    <div class="code-block">
+        <pre><code>python run.py --proxy localhost:3000/api</code></pre>
+    </div>
+    
+    <div class="alert alert-warning">
+        <p><strong>Security Warning:</strong> When exposing PyServe to the internet, ensure you understand the security implications. PyServe is designed for development and internal use, not as a production web server.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Next Steps</h2>
+    <p>Now that you have PyServe running, you may want to:</p>
+    
+    <ul>
+        <li>Learn how to <a href="#" data-page="configuration">configure PyServe</a> using YAML files</li>
+        <li>Understand how to <a href="#" data-page="static-files">serve static files</a></li>
+        <li>Explore <a href="#" data-page="templates">templating capabilities</a></li>
+        <li>Set up <a href="#" data-page="reverse-proxy">reverse proxying</a> to other services</li>
+    </ul>
+</div>

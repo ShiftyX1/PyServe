@@ -1,6 +1,6 @@
 from .server import TCPServer, HTTPServer, HTTPRequest, HTTPResponse
 from .logging import PyServeLogger, get_logger
-from .configure import Configuration
 from .template import TemplateEngine
+from .configuration import Configuration, TestConfiguration
 
-__version__ = '0.0.2'
+__version__ = '0.1.0'

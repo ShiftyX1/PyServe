@@ -1,0 +1,284 @@
+<div class="header-banner">
+    <h1>Logging</h1>
+    <p>Learn how to configure and use the PyServe logging system</p>
+</div>
+
+<div class="card">
+    <h2>Logging Overview</h2>
+    <p>
+        PyServe includes a comprehensive logging system that provides detailed information about server operations,
+        requests, errors, and more. The logging system is built on Python's standard <code>logging</code> module
+        but adds colorized console output and structured file logging.
+    </p>
+    
+    <div class="alert alert-info">
+        <p><strong>Key Features:</strong> Colored console output, file logging, configurable log levels, and structured logging.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Configuring Logging</h2>
+    <p>
+        PyServe's logging behavior can be configured in the <code>logging</code> section of your <code>config.yaml</code> file:
+    </p>
+    
+    <div class="code-block">
+        <pre><code>logging:
+  level: INFO
+  log_file: ./logs/pyserve.log
+  console_output: true</code></pre>
+    </div>
+    
+    <h3>Configuration Options</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Description</th>
+                <th>Default</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>level</code></td>
+                <td>Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)</td>
+                <td>INFO</td>
+            </tr>
+            <tr>
+                <td><code>log_file</code></td>
+                <td>Path to the log file</td>
+                <td>./logs/pyserve.log</td>
+            </tr>
+            <tr>
+                <td><code>console_output</code></td>
+                <td>Whether to output logs to console</td>
+                <td>true</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <h3>Log Levels</h3>
+    <p>Available log levels, from most to least verbose:</p>
+    <ul>
+        <li><code>DEBUG</code>: Detailed information, typically useful only for diagnosing problems</li>
+        <li><code>INFO</code>: Confirmation that things are working as expected</li>
+        <li><code>WARNING</code>: Indication that something unexpected happened, but the application can still function</li>
+        <li><code>ERROR</code>: Due to a more serious problem, the application has not been able to perform a function</li>
+        <li><code>CRITICAL</code>: A serious error, indicating that the application may be unable to continue running</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Console Logging</h2>
+    <p>
+        PyServe's console logging includes colorized output to make it easier to identify different types of log messages:
+    </p>
+    
+    <ul>
+        <li><span style="color: #2ecc71;">INFO</span>: Green - normal operations</li>
+        <li><span style="color: #3498db;">DEBUG</span>: Cyan - detailed debugging information</li>
+        <li><span style="color: #f39c12;">WARNING</span>: Yellow - important warnings</li>
+        <li><span style="color: #e74c3c;">ERROR</span>: Red - error conditions</li>
+        <li><span style="color: #e74c3c; font-weight: bold;">CRITICAL</span>: Bold Red - critical errors</li>
+    </ul>
+    
+    <p>Example console output:</p>
+    <div class="code-block">
+        <pre><code>[PyServe] 2025-05-08 14:30:45 [INFO] Server running at http://127.0.0.1:8000/
+[PyServe] 2025-05-08 14:30:45 [INFO] Static files directory: /path/to/static
+[PyServe] 2025-05-08 14:30:45 [INFO] Template files directory: /path/to/templates
+[PyServe] 2025-05-08 14:30:52 [INFO] Connected to 127.0.0.1:54321
+[PyServe] 2025-05-08 14:30:52 [INFO] Received GET request for / from 127.0.0.1:54321
+[PyServe] 2025-05-08 14:30:55 [INFO] Received GET request for /static/css/styles.css from 127.0.0.1:54322
+[PyServe] 2025-05-08 14:30:55 [DEBUG] Serving static file: /path/to/static/css/styles.css (text/css)
+[PyServe] 2025-05-08 14:31:02 [INFO] Received GET request for /nonexistent from 127.0.0.1:54325
+[PyServe] 2025-05-08 14:31:02 [WARNING] File not found: /path/to/static/nonexistent</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>File Logging</h2>
+    <p>
+        In addition to console output, PyServe can write logs to a file specified in the configuration.
+        File logs use a standard format without colors:
+    </p>
+    
+    <div class="code-block">
+        <pre><code>[2025-05-08 14:30:45] [INFO] Server running at http://127.0.0.1:8000/
+[2025-05-08 14:30:45] [INFO] Static files directory: /path/to/static
+[2025-05-08 14:30:45] [INFO] Template files directory: /path/to/templates
+[2025-05-08 14:30:52] [INFO] Connected to 127.0.0.1:54321
+[2025-05-08 14:30:52] [INFO] Received GET request for / from 127.0.0.1:54321
+[2025-05-08 14:30:55] [INFO] Received GET request for /static/css/styles.css from 127.0.0.1:54322
+[2025-05-08 14:30:55] [DEBUG] Serving static file: /path/to/static/css/styles.css (text/css)
+[2025-05-08 14:31:02] [INFO] Received GET request for /nonexistent from 127.0.0.1:54325
+[2025-05-08 14:31:02] [WARNING] File not found: /path/to/static/nonexistent</code></pre>
+    </div>
+    
+    <p>
+        The log file directory is automatically created if it doesn't exist.
+    </p>
+</div>
+
+<div class="card">
+    <h2>Debug Mode</h2>
+    <p>
+        PyServe includes a debug mode that enables more verbose logging. Debug mode can be enabled in two ways:
+    </p>
+    
+    <h3>Command Line</h3>
+    <p>Use the <code>-d</code> or <code>--debug</code> flag when starting the server:</p>
+    
+    <div class="code-block">
+        <pre><code>python run.py -d</code></pre>
+    </div>
+    
+    <h3>Configuration File</h3>
+    <p>Set the logging level to <code>DEBUG</code> in your configuration file:</p>
+    
+    <div class="code-block">
+        <pre><code>logging:
+  level: DEBUG
+  log_file: ./logs/debug.log
+  console_output: true</code></pre>
+    </div>
+    
+    <div class="alert alert-info">
+        <p><strong>Note:</strong> The command line <code>-d</code> flag overrides the logging level in the configuration file.</p>
+    </div>
+    
+    <h3>What Debug Mode Logs</h3>
+    <p>Debug mode includes detailed information about:</p>
+    <ul>
+        <li>Server configuration and setup</li>
+        <li>Request/response details</li>
+        <li>Static file serving</li>
+        <li>Template rendering</li>
+        <li>Reverse proxy operations</li>
+        <li>Internal server state</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Using the Logger</h2>
+    <p>
+        If you're extending PyServe or integrating it into your application, you can use the logger directly:
+    </p>
+    
+    <div class="code-block">
+        <pre><code>from pyserve import get_logger
+
+# Create a logger with default settings
+logger = get_logger()
+
+# Or specify custom settings
+logger = get_logger(level=logging.DEBUG, log_file='./myapp.log')
+
+# Use the logger
+logger.info("Application started")
+logger.debug("Debug information")
+logger.warning("Warning message")
+logger.error("Error occurred")
+logger.critical("Critical failure")</code></pre>
+    </div>
+    
+    <p>
+        The <code>PyServeLogger</code> class provides a wrapper around Python's standard logging module with
+        additional features like colored console output:
+    </p>
+    
+    <div class="code-block">
+        <pre><code>from pyserve.logging import PyServeLogger
+import logging
+
+logger = PyServeLogger(level=logging.DEBUG, log_file='./custom.log')
+logger.info("Custom logger initialized")</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Log Rotation</h2>
+    <p>
+        PyServe does not currently include built-in log rotation. For production environments, you should
+        consider using an external log rotation tool like <code>logrotate</code> on Linux or implementing
+        your own log rotation logic.
+    </p>
+    
+    <p>Example logrotate configuration for PyServe logs:</p>
+    
+    <div class="code-block">
+        <pre><code>/path/to/logs/pyserve.log {
+    daily
+    missingok
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    create 0640 www-data www-data
+    sharedscripts
+    postrotate
+        systemctl reload pyserve > /dev/null 2>&1 || true
+    endscript
+}</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Examples</h2>
+    
+    <h3>Basic Logging Configuration</h3>
+    <p>Standard configuration with INFO level logging to console and file:</p>
+    
+    <div class="code-block">
+        <pre><code>logging:
+  level: INFO
+  log_file: ./logs/pyserve.log
+  console_output: true</code></pre>
+    </div>
+    
+    <h3>Debug Configuration</h3>
+    <p>Configuration for detailed debugging:</p>
+    
+    <div class="code-block">
+        <pre><code>logging:
+  level: DEBUG
+  log_file: ./logs/debug.log
+  console_output: true</code></pre>
+    </div>
+    
+    <h3>Production Configuration</h3>
+    <p>Configuration for a production environment (less verbose, focused on important events):</p>
+    
+    <div class="code-block">
+        <pre><code>logging:
+  level: WARNING
+  log_file: /var/log/pyserve/server.log
+  console_output: false</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Best Practices</h2>
+    
+    <h3>Development</h3>
+    <ul>
+        <li>Use DEBUG level during development to see detailed information</li>
+        <li>Enable console output for immediate feedback</li>
+        <li>Use descriptive log messages that include relevant context</li>
+    </ul>
+    
+    <h3>Production</h3>
+    <ul>
+        <li>Use INFO or WARNING level to reduce log volume</li>
+        <li>Always enable file logging to capture important events</li>
+        <li>Implement log rotation to manage log file size</li>
+        <li>Consider forwarding logs to a centralized logging system</li>
+    </ul>
+    
+    <h3>Performance</h3>
+    <ul>
+        <li>Higher log levels (INFO, WARNING) have less performance impact than DEBUG</li>
+        <li>File I/O for logging can become a bottleneck under heavy load</li>
+        <li>Consider disabling DEBUG logging in high-traffic scenarios</li>
+    </ul>
+</div>

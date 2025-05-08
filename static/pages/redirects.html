@@ -1,0 +1,278 @@
+<div class="header-banner">
+    <h1>URL Redirects</h1>
+    <p>Learn how to configure URL redirections in PyServe</p>
+</div>
+
+<div class="card">
+    <h2>Redirects Overview</h2>
+    <p>
+        URL redirection is a technique to forward users and search engines from one URL to another. PyServe provides 
+        a simple way to configure redirects through the configuration file.
+    </p>
+    
+    <div class="alert alert-info">
+        <p><strong>Common Use Cases:</strong> Redirects are useful for handling moved pages, creating short URLs, 
+        preserving SEO when restructuring a website, or forwarding users to canonical URLs.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Configuring Redirects</h2>
+    <p>
+        Redirects in PyServe are configured in the <code>redirect_instructions</code> section of your <code>config.yaml</code> file:
+    </p>
+    
+    <div class="code-block">
+        <pre><code>server:
+  # Other server settings...
+  redirect_instructions:
+    - /home: /index.html
+    - /blog: https://example.com/blog
+    - /products: /shop/products.html</code></pre>
+    </div>
+    
+    <p>The format is a list of key-value pairs where:</p>
+    <ul>
+        <li><strong>Key</strong>: The path to match (source URL)</li>
+        <li><strong>Value</strong>: The destination URL to redirect to (target URL)</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>How Redirects Work</h2>
+    
+    <p>When a request is received by PyServe, it checks if the request path exactly matches any of the configured redirect sources:</p>
+    
+    <ol>
+        <li>If a match is found, PyServe returns an HTTP 302 Found response</li>
+        <li>The response includes a <code>Location</code> header with the target URL</li>
+        <li>The client's browser automatically follows the redirect to the new location</li>
+    </ol>
+    
+    <div class="alert alert-info">
+        <p><strong>Query Parameters:</strong> PyServe will preserve query parameters when redirecting. For example, if a user
+        visits <code>/home?param=value</code> and you have a redirect from <code>/home</code> to <code>/index.html</code>,
+        the user will be redirected to <code>/index.html?param=value</code>.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Types of Redirects</h2>
+    
+    <h3>Internal Redirects</h3>
+    <p>
+        Internal redirects point to another path on the same server. They start with a slash (<code>/</code>):
+    </p>
+    
+    <div class="code-block">
+        <pre><code>redirect_instructions:
+  - /old-page: /new-page
+  - /home: /index.html
+  - /products: /shop/products.html</code></pre>
+    </div>
+    
+    <h3>External Redirects</h3>
+    <p>
+        External redirects point to a URL on a different domain. They include the full URL with protocol:
+    </p>
+    
+    <div class="code-block">
+        <pre><code>redirect_instructions:
+  - /blog: https://blog.example.com
+  - /forum: https://community.example.com
+  - /shop: https://store.example.com/products</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Examples</h2>
+    
+    <h3>Example 1: Basic Redirects</h3>
+    <p>Redirect old URLs to new locations:</p>
+    
+    <div class="code-block">
+        <pre><code>server:
+  redirect_instructions:
+    - /home: /index.html
+    - /about-us: /about.html
+    - /contact-us: /contact.html</code></pre>
+    </div>
+    
+    <h3>Example 2: Mixed Internal and External Redirects</h3>
+    <p>A combination of internal and external redirects:</p>
+    
+    <div class="code-block">
+        <pre><code>server:
+  redirect_instructions:
+    - /home: /index.html
+    - /blog: https://blog.example.com
+    - /shop: /store/index.html
+    - /support: https://support.example.com</code></pre>
+    </div>
+    
+    <h3>Example 3: Shortening URLs</h3>
+    <p>Create short, memorable URLs that redirect to longer ones:</p>
+    
+    <div class="code-block">
+        <pre><code>server:
+  redirect_instructions:
+    - /dl: /downloads/software.html
+    - /doc: /documentation/index.html
+    - /api: /developers/api-reference.html</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Implementation Details</h2>
+    
+    <h3>Redirect Status Code</h3>
+    <p>
+        PyServe uses HTTP status code <code>302 Found</code> for redirects, which tells the client that the 
+        resource is temporarily located at a different URL. This is appropriate for most use cases.
+    </p>
+    
+    <div class="alert alert-info">
+        <p><strong>Note:</strong> In HTTP, there are several types of redirects (301, 302, 303, 307, 308). PyServe
+        currently only supports 302 redirects. For situations where permanent (301) redirects are needed for SEO purposes,
+        consider using a production-grade web server like Nginx or Apache.</p>
+    </div>
+    
+    <h3>Redirect Processing</h3>
+    <p>
+        Redirect processing happens before checking static files or other request handlers. This means redirects
+        take precedence over any other routing rules in the server.
+    </p>
+</div>
+
+<div class="card">
+    <h2>Best Practices</h2>
+    
+    <h3>SEO Considerations</h3>
+    <ul>
+        <li>Be aware that search engines treat 302 redirects as temporary, which means they will keep the old URL indexed</li>
+        <li>For permanent site restructuring, consider using a server that supports 301 (permanent) redirects</li>
+        <li>Avoid redirect chains (redirects pointing to other redirects) as they slow down the user experience</li>
+    </ul>
+    
+    <h3>User Experience</h3>
+    <ul>
+        <li>Keep redirects to a minimum to avoid slowing down the user experience</li>
+        <li>Use clear, consistent patterns for redirect rules</li>
+        <li>Consider adding a brief delay page for external redirects to inform users they're leaving your site</li>
+    </ul>
+    
+    <h3>Maintenance</h3>
+    <ul>
+        <li>Document your redirect rules to make future maintenance easier</li>
+        <li>Periodically review redirects to ensure they're still needed and working correctly</li>
+        <li>Group redirects logically in your configuration file for better readability</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Advanced Usage</h2>
+    
+    <h3>Programmatic Redirects</h3>
+    <p>
+        If you need more dynamic redirect rules than what the configuration file supports, you can extend
+        the <code>HTTPServer</code> class to implement custom redirect logic:
+    </p>
+    
+    <div class="code-block">
+        <pre><code>from pyserve import HTTPServer, HTTPResponse
+
+class MyServer(HTTPServer):
+    def handle_request(self, request_data, client_address):
+        request = self.parse_request(request_data)
+        
+        # Custom redirect logic based on request properties
+        if request.path.startswith('/user/') and 'id' in request.query_params:
+            user_id = request.query_params['id'][0]
+            return HTTPResponse(302, headers={'Location': f'/profile?user={user_id}'})
+            
+        # Fall back to default handling
+        return super().handle_request(request_data, client_address)</code></pre>
+    </div>
+    
+    <h3>Redirect with Query Parameters</h3>
+    <p>
+        The <code>handle_redirection</code> method in PyServe automatically preserves query parameters when redirecting.
+        For example, if you have a redirect from <code>/search</code> to <code>/find</code> and a user visits
+        <code>/search?q=keyword</code>, they will be redirected to <code>/find?q=keyword</code>.
+    </p>
+    
+    <div class="code-block">
+        <pre><code>def handle_redirection(self, request):
+    """
+    Handles request redirection
+    
+    Args:
+        request: HTTP-request
+        
+    Returns:
+        HTTPResponse: Redirect response
+    """
+    target_url = self.redirections[request.path]
+    
+    # Add query parameters to the redirection if they exist
+    if request.query_params:
+        query_parts = []
+        for key, values in request.query_params.items():
+            for value in values:
+                query_parts.append(f"{key}={value}")
+        if query_parts:
+            target_url += "?" + "&".join(query_parts)
+    
+    return HTTPResponse(302, headers={'Location': target_url})</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Troubleshooting</h2>
+    
+    <h3>Common Issues</h3>
+    
+    <h4>Redirect Not Working</h4>
+    <ul>
+        <li>Ensure the path in your configuration exactly matches the request path (case-sensitive)</li>
+        <li>Check that the target URL is correctly formatted (internal paths should start with a slash)</li>
+        <li>Verify that the redirect rule is correctly formatted in your <code>config.yaml</code> file</li>
+    </ul>
+    
+    <h4>Redirect Loop</h4>
+    <p>
+        A redirect loop occurs when a redirect points to itself or creates a circular chain. For example:
+    </p>
+    <ul>
+        <li>Direct loop: <code>/page1</code> redirects to <code>/page1</code></li>
+        <li>Circular chain: <code>/page1</code> redirects to <code>/page2</code> which redirects back to <code>/page1</code></li>
+    </ul>
+    <p>
+        To fix this, review your redirect rules and ensure they don't create circular references.
+    </p>
+    
+    <h4>Debug Logging</h4>
+    <p>
+        Enable debug mode to see detailed logs about redirect processing:
+    </p>
+    
+    <div class="code-block">
+        <pre><code>python run.py -d</code></pre>
+    </div>
+    <p>
+        This will show messages like <code>Redirecting /home to /index.html</code> in the console.
+    </p>
+</div>
+
+<div class="card">
+    <h2>Summary</h2>
+    <p>
+        PyServe's redirection system provides a simple way to configure URL redirects without modifying your
+        application code. While it currently only supports 302 redirects, it's suitable for most development
+        and internal use cases.
+    </p>
+    <p>
+        For more complex redirection needs or production environments, consider using PyServe as part of a 
+        larger infrastructure with a dedicated web server or load balancer handling advanced redirection rules.
+    </p>
+</div>
