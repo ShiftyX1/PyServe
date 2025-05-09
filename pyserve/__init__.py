@@ -1,6 +1,6 @@
-from .server import TCPServer, HTTPServer, HTTPRequest, HTTPResponse
+from .server import AsyncTCPServer, AsyncHTTPServer, HTTPRequest, HTTPResponse
 from .logging import PyServeLogger, get_logger
-from .template import TemplateEngine
+from .template import AsyncTemplateEngine
 from .configuration import Configuration, TestConfiguration
 
-__version__ = '0.1.0'
+__version__ = '0.1-async'

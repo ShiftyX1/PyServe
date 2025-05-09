@@ -1,30 +1,30 @@
 #!/usr/bin/env python3
 """
-PyServe - HTTP Server Runner
+PyServe - Async HTTP Server Runner
 """
 
 import os
 import sys
 import signal
 import argparse
-from pyserve import HTTPServer, Configuration, get_logger, TestConfiguration
+import asyncio
+from pyserve import AsyncHTTPServer, Configuration, get_logger, TestConfiguration
 from pyserve import __version__
 
 
 def parse_arguments():
-    """Parse command line arguments"""
     parser = argparse.ArgumentParser(
-        description='PyServe - Simple HTTP Server\nVersion {}'.format(__version__),
+        description='PyServe - Async HTTP Server\nVersion {}'.format(__version__),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python run.py                           # Run with default settings
-  python run.py -p 8080                   # Run on port 8080
-  python run.py -H 0.0.0.0 -p 8000        # Run on all interfaces
-  python run.py -s ./my_static            # Use custom static directory
-  python run.py -t ./my_templates         # Use custom templates directory
-  python run.py -c /path/to/config.yaml   # Use custom config file
-  python run.py --proxy host:port/path    # Enable reverse proxy
+  python async_run.py                       # Run with default settings
+  python async_run.py -p 8080               # Run on port 8080
+  python async_run.py -H 0.0.0.0 -p 8000    # Run on all interfaces
+  python async_run.py -s ./my_static        # Use custom static directory
+  python async_run.py -t ./my_templates     # Use custom templates directory
+  python async_run.py -c /path/to/config.yaml  # Use custom config file
+  python async_run.py --proxy host:port/path   # Enable reverse proxy
 """
     )
     
@@ -49,17 +49,24 @@ Examples:
     
     return parser.parse_args()
 
-def setup_signal_handlers(server):
-    """Setup signal handlers for graceful shutdown"""
-    def signal_handler(sig, frame):
-        server.close()
-        sys.exit(0)
+def setup_signal_handlers(loop, server):
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(
+            sig,
+            lambda: asyncio.create_task(shutdown(loop, server))
+        )
+
+async def shutdown(loop, server):
+    await server.stop()
+    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
     
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+    for task in tasks:
+        task.cancel()
+    
+    await asyncio.gather(*tasks, return_exceptions=True)
+    loop.stop()
 
 def parse_proxy_arg(proxy_arg):
-    """Parse the proxy argument in the format host:port/path"""
     if not proxy_arg:
         return None
         
@@ -89,12 +96,9 @@ def parse_proxy_arg(proxy_arg):
         print("Format should be host:port/path")
         sys.exit(1)
 
-def run():
-    """Run the HTTP server"""
-    # Parse arguments
+async def run_server():
     args = parse_arguments()
     
-    # Check for version flag
     if args.version:
         from pyserve import __version__
         print(f"PyServe version {__version__}")
@@ -102,7 +106,6 @@ def run():
     
     config = Configuration(args.config)
     
-    # Setup logger
     logger = get_logger(
         level=config.get_log_level(),
         log_file=config.logging_config.get('log_file')
@@ -154,7 +157,6 @@ def run():
             dir_result = test_config.test_static_directories()
             sys.exit(0 if dir_result else 1)
 
-    # Get server configuration (command line args override config file)
     host = args.host or config.server_config.get('host')
     port = args.port or config.server_config.get('port')
     backlog = config.server_config.get('backlog')
@@ -163,7 +165,9 @@ def run():
     reverse_proxy = config.server_config.get('reverse_proxy', [])
     
     try:
-        server = HTTPServer(
+        loop = asyncio.get_event_loop()
+        
+        server = AsyncHTTPServer(
             host, 
             port, 
             static_dir, 
@@ -173,9 +177,11 @@ def run():
             redirections=config.redirections,
             reverse_proxy=reverse_proxy
         )
-        setup_signal_handlers(server)
+        
+        setup_signal_handlers(loop, server)
+        
         from pyserve import __version__
-        logger.info(f"PyServe v{__version__} starting")
+        logger.info(f"PyServe v{__version__} (Async) starting")
         if args.debug:
             logger.debug(f"Configuration loaded: {config.server_config}")
         logger.info(f"Server running at http://{host}:{port}/")
@@ -185,13 +191,20 @@ def run():
         if reverse_proxy:
             for proxy in reverse_proxy:
                 logger.info(f"Reverse proxy configured: {proxy['path']} -> {proxy['host']}:{proxy['port']}")
-                
-        server.run()
+        
+        await server.start()
+        
     except Exception as e:
         logger.critical(f"Failed to start server: {e}")
         if isinstance(e, PermissionError):
             logger.warning("Permission denied: Please run the server with sudo privileges (or maybe you should change the default HTTP port in config.yaml)")
         sys.exit(1)
 
+def main():
+    try:
+        asyncio.run(run_server())
+    except KeyboardInterrupt:
+        pass
+
 if __name__ == "__main__":
-    run()
+    main()
