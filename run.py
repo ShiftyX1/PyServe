@@ -17,6 +17,9 @@ def parse_arguments():
         description='PyServe - Async HTTP Server\nVersion {}'.format(__version__),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+PyServe version {}
+Github repository, feel free to contribute: https://github.com/ShiftyX1/PyServe
+
 Examples:
   python run.py                       # Run with default settings
   python run.py -p 8080               # Run on port 8080
@@ -26,7 +29,7 @@ Examples:
   python run.py -c /path/to/config.yaml  # Use custom config file
   python run.py --proxy host:port/path   # Enable reverse proxy
   python run.py --ssl --cert ./ssl/cert.pem --key ./ssl/key.pem  # Run with HTTPS
-"""
+""".format(__version__)
     )
     
     parser.add_argument('-c', '--config', type=str, default='./config.yaml',
@@ -111,6 +114,28 @@ async def run_server():
     args = parse_arguments()
     
     if args.version:
+        print(f"Don't forget to star the repository if you like it!")
+        print(f"https://github.com/ShiftyX1/PyServe")
+        print(f"\nThanks for using PyServe!")
+        print(f"Made with ❤️ by ShiftyX1")
+        print(f"\nReady to serve!")
+        # https://patorjk.com/software/taag/ font name: "RubiFont" but actually I can't say that I'm 100% sure :D
+#         print("""
+# ▗▄▄▖▗▖  ▗▖▗▄▄▖▗▄▄▄▖▗▄▄▖ ▗▖  ▗▖▗▄▄▄▖
+# ▐▌ ▐▌▝▚▞▘▐▌   ▐▌   ▐▌ ▐▌▐▌  ▐▌▐▌   
+# ▐▛▀▘  ▐▌  ▝▀▚▖▐▛▀▀▘▐▛▀▚▖▐▌  ▐▌▐▛▀▀▘
+# ▐▌    ▐▌ ▗▄▄▞▘▐▙▄▄▖▐▌ ▐▌ ▝▚▞▘ ▐▙▄▄▖
+                                                  
+# """)
+        # https://patorjk.com/software/taag/ font name: "ANSI Shadow"
+        print("""
+██████╗ ██╗   ██╗███████╗███████╗██████╗ ██╗   ██╗███████╗    ██╗   ██╗ ██████╗    ██████╗ 
+██╔══██╗╚██╗ ██╔╝██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝    ██║   ██║██╔═████╗   ╚════██╗
+██████╔╝ ╚████╔╝ ███████╗█████╗  ██████╔╝██║   ██║█████╗      ██║   ██║██║██╔██║    █████╔╝
+██╔═══╝   ╚██╔╝  ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝      ╚██╗ ██╔╝████╔╝██║    ╚═══██╗
+██║        ██║   ███████║███████╗██║  ██║ ╚████╔╝ ███████╗     ╚████╔╝ ╚██████╔╝██╗██████╔╝
+╚═╝        ╚═╝   ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝      ╚═══╝   ╚═════╝ ╚═╝╚═════╝ 
+""")
         print(f"PyServe version {__version__}")
         sys.exit(0)
     
@@ -211,6 +236,7 @@ async def run_server():
             backlog, 
             debug=args.debug or log_level <= 10,
             redirections=config.redirections,
+            locations=config.locations,
             reverse_proxy=reverse_proxy,
             ssl_cert=ssl_cert,
             ssl_key=ssl_key

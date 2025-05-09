@@ -22,6 +22,21 @@ def get_redirections(redirections: List[Dict[str, str]]) -> Dict[str, str]:
     
     return redirects_dict
 
+def get_locations(locations: List[Dict[str, Any]]) -> Dict[str, Any]:
+    """
+    Convert list of location dictionaries to a single dictionary
+    
+    Args:
+        locations: List of location configurations
+    """
+    locations_dict = {}
+    
+    for location_item in locations:
+        for path, config in location_item.items():
+            locations_dict[path] = config
+    
+    return locations_dict
+
 
 def get_content_type(file_path: str) -> str:
     """

@@ -66,6 +66,10 @@ class HTTPResponse:
     @classmethod
     def not_found(cls, message: str = "Not Found") -> 'HTTPResponse':
         return cls(404, body=message)
+    
+    @classmethod
+    def unauthorized(cls, message: str = "Unauthorized") -> 'HTTPResponse':
+        return cls(401, body=message)
         
     @classmethod
     def internal_error(cls, message: str = "Internal Server Error") -> 'HTTPResponse':

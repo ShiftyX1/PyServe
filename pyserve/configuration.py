@@ -48,6 +48,7 @@ class Configuration:
         self.logging_config = self._config.get('logging', {})
         self.ssl_config = SSLConfiguration(self._config.get('ssl', {}))
         self.redirections = self.server_config.get('redirect_instructions', [])
+        self.locations = self.server_config.get('locations', [])
         
         if 'reverse_proxy' not in self.server_config:
             self.server_config['reverse_proxy'] = []

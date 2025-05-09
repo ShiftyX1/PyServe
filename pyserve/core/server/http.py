@@ -1,11 +1,9 @@
 """
 HTTP server implementation for PyServe
 """
-import asyncio
 import ssl
 import os
-from typing import Optional, Union, List, Dict
-import aiofiles
+from typing import Optional, Union, List, Dict, Any
 import aiohttp
 
 from pyserve.core.server.tcp import AsyncTCPServer
@@ -15,6 +13,7 @@ from pyserve.http.handlers.static import StaticFileHandler
 from pyserve.http.handlers.redirect import RedirectHandler
 from pyserve.http.handlers.templates import TemplateHandler
 from pyserve.http.handlers.proxy import ProxyHandler
+from pyserve.http.handlers.auth.base import HTTPAuthBase
 from pyserve.template.engine import AsyncTemplateEngine
 from pyserve.utils.helpers import get_redirections
 
@@ -31,6 +30,7 @@ class AsyncHTTPServer(AsyncTCPServer):
                  debug: bool = False, 
                  redirections: Optional[List[Dict[str, str]]] = None, 
                  reverse_proxy: Optional[List[Dict[str, Union[str, int]]]] = None,
+                 locations: Optional[Dict[str, Any]] = None,
                  ssl_cert: Optional[str] = None,
                  ssl_key: Optional[str] = None):
         
@@ -51,6 +51,7 @@ class AsyncHTTPServer(AsyncTCPServer):
         self.template_engine = AsyncTemplateEngine(template_dir)
         self.debug = debug
         self.redirections = get_redirections(redirections or [])
+        self.locations = locations or {}
         self.reverse_proxy = reverse_proxy or []
         self.client_session: Optional[aiohttp.ClientSession] = None
         self.ssl_enabled = ssl_context is not None
@@ -63,6 +64,7 @@ class AsyncHTTPServer(AsyncTCPServer):
         self.redirect_handler = RedirectHandler(self.redirections)
         self.template_handler = TemplateHandler(self.template_engine)
         self.proxy_handler = ProxyHandler(self.reverse_proxy)
+        self.auth_handler = HTTPAuthBase  
         
     async def start(self) -> None:
         """Start the HTTP server"""
@@ -117,6 +119,19 @@ class AsyncHTTPServer(AsyncTCPServer):
         if request.path in self.redirections:
             self.logger.info(f"Redirecting {request.path} to {self.redirections[request.path]}")
             return self.redirect_handler.handle(request)
+        
+        # Check for location settings
+        if request.path in self.locations.keys():
+            auth_handler_temp = self.auth_handler(self.locations[request.path])
+            if not auth_handler_temp.authenticate(request):
+                return HTTPResponse(
+                    status_code=401,
+                    headers={
+                        "WWW-Authenticate": "Basic realm=\"Restricted Area\"",
+                        "Content-Type": "text/html"
+                    },
+                    body="<h1>401 Unauthorized</h1><p>Authentication is required to access this resource.</p>"
+                )
             
         # Handle root path
         if request.path == '/':
