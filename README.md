@@ -4,13 +4,15 @@ PyServe is a lightweight HTTP server written in Python for educational purposes.
 
 <img src="./images/logo.png" alt="isolated" width="150"/>
 
+[Project Roadmap](./roadmap.md)
+
 ## Project Overview
 
 I developed PyServe as a learning project to understand the principles of HTTP servers. It is not intended for use in a production environment, but contains all the basic components of a real HTTP server and is suitable for learning and experimentation.
 
 ### Features:
 
-- Simple and understandable HTTP server without external dependencies
+- Simple and understandable HTTP server without external dependencies (almost without)
 - Serving static files with correct MIME types
 - Template support for generating dynamic content
 - Customizable logging with colored terminal output

@@ -1,32 +1,44 @@
 <div class="header-banner">
     <h1>Logging</h1>
-    <p>Learn how to configure and use the PyServe logging system</p>
+    <p>Learn how to configure and use the enhanced PyServe 0.3-async logging system</p>
 </div>
 
 <div class="card">
     <h2>Logging Overview</h2>
     <p>
-        PyServe includes a comprehensive logging system that provides detailed information about server operations,
-        requests, errors, and more. The logging system is built on Python's standard <code>logging</code> module
-        but adds colorized console output and structured file logging.
+        PyServe 0.3-async includes a completely redesigned logging system with enhanced features:
     </p>
     
+    <ul>
+        <li>Modular logging architecture with separate formatters and handlers</li>
+        <li>Colored console output for better visibility</li>
+        <li>Structured JSON logging for production environments</li>
+        <li>Log rotation capabilities to manage file size</li>
+        <li>Configurable log levels and destinations</li>
+        <li>Performance-optimized logging for async environments</li>
+    </ul>
+    
     <div class="alert alert-info">
-        <p><strong>Key Features:</strong> Colored console output, file logging, configurable log levels, and structured logging.</p>
+        <p><strong>New in 0.3-async:</strong> Complete logging system rewrite with support for structured logging, rotation, and advanced formatting options.</p>
     </div>
 </div>
 
 <div class="card">
     <h2>Configuring Logging</h2>
     <p>
-        PyServe's logging behavior can be configured in the <code>logging</code> section of your <code>config.yaml</code> file:
+        PyServe's logging behavior is configured in the <code>logging</code> section of your <code>config.yaml</code> file:
     </p>
     
     <div class="code-block">
         <pre><code>logging:
   level: INFO
   log_file: ./logs/pyserve.log
-  console_output: true</code></pre>
+  console_output: true
+  use_colors: true
+  use_rotation: false
+  max_log_size: 10485760  # 10 MB
+  backup_count: 5
+  structured_logs: false</code></pre>
     </div>
     
     <h3>Configuration Options</h3>
@@ -54,206 +66,294 @@
                 <td>Whether to output logs to console</td>
                 <td>true</td>
             </tr>
+            <tr>
+                <td><code>use_colors</code></td>
+                <td>Enable colored console output</td>
+                <td>true</td>
+            </tr>
+            <tr>
+                <td><code>use_rotation</code></td>
+                <td>Enable log rotation</td>
+                <td>false</td>
+            </tr>
+            <tr>
+                <td><code>max_log_size</code></td>
+                <td>Maximum log file size (bytes)</td>
+                <td>10485760 (10 MB)</td>
+            </tr>
+            <tr>
+                <td><code>backup_count</code></td>
+                <td>Number of backup log files</td>
+                <td>5</td>
+            </tr>
+            <tr>
+                <td><code>structured_logs</code></td>
+                <td>Enable JSON structured logging</td>
+                <td>false</td>
+            </tr>
         </tbody>
     </table>
-    
-    <h3>Log Levels</h3>
+</div>
+
+<div class="card">
+    <h2>Log Levels</h2>
     <p>Available log levels, from most to least verbose:</p>
-    <ul>
-        <li><code>DEBUG</code>: Detailed information, typically useful only for diagnosing problems</li>
-        <li><code>INFO</code>: Confirmation that things are working as expected</li>
-        <li><code>WARNING</code>: Indication that something unexpected happened, but the application can still function</li>
-        <li><code>ERROR</code>: Due to a more serious problem, the application has not been able to perform a function</li>
-        <li><code>CRITICAL</code>: A serious error, indicating that the application may be unable to continue running</li>
-    </ul>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Level</th>
+                <th>Use Case</th>
+                <th>Color</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>DEBUG</code></td>
+                <td>Detailed information, typically useful only for diagnosing problems</td>
+                <td><span style="color: #3498db;">Cyan</span></td>
+            </tr>
+            <tr>
+                <td><code>INFO</code></td>
+                <td>Confirmation that things are working as expected</td>
+                <td><span style="color: #2ecc71;">Green</span></td>
+            </tr>
+            <tr>
+                <td><code>WARNING</code></td>
+                <td>Indication that something unexpected happened</td>
+                <td><span style="color: #f39c12;">Yellow</span></td>
+            </tr>
+            <tr>
+                <td><code>ERROR</code></td>
+                <td>Due to a more serious problem, the software has not been able to perform some function</td>
+                <td><span style="color: #e74c3c;">Red</span></td>
+            </tr>
+            <tr>
+                <td><code>CRITICAL</code></td>
+                <td>A serious error, indicating that the program itself may be unable to continue running</td>
+                <td><span style="color: #e74c3c; font-weight: bold;">Bold Red</span></td>
+            </tr>
+        </tbody>
+    </table>
 </div>
 
 <div class="card">
     <h2>Console Logging</h2>
     <p>
-        PyServe's console logging includes colorized output to make it easier to identify different types of log messages:
+        PyServe's console logging includes colorized output and custom formatting:
     </p>
     
-    <ul>
-        <li><span style="color: #2ecc71;">INFO</span>: Green - normal operations</li>
-        <li><span style="color: #3498db;">DEBUG</span>: Cyan - detailed debugging information</li>
-        <li><span style="color: #f39c12;">WARNING</span>: Yellow - important warnings</li>
-        <li><span style="color: #e74c3c;">ERROR</span>: Red - error conditions</li>
-        <li><span style="color: #e74c3c; font-weight: bold;">CRITICAL</span>: Bold Red - critical errors</li>
-    </ul>
-    
-    <p>Example console output:</p>
     <div class="code-block">
         <pre><code>[PyServe] 2025-05-08 14:30:45 [INFO] Server running at http://127.0.0.1:8000/
 [PyServe] 2025-05-08 14:30:45 [INFO] Static files directory: /path/to/static
 [PyServe] 2025-05-08 14:30:45 [INFO] Template files directory: /path/to/templates
-[PyServe] 2025-05-08 14:30:52 [INFO] Connected to 127.0.0.1:54321
-[PyServe] 2025-05-08 14:30:52 [INFO] Received GET request for / from 127.0.0.1:54321
-[PyServe] 2025-05-08 14:30:55 [INFO] Received GET request for /static/css/styles.css from 127.0.0.1:54322
+[PyServe] 2025-05-08 14:30:52 [INFO] Client connected from 127.0.0.1:54321
+[PyServe] 2025-05-08 14:30:52 [INFO] [GET] | / from 127.0.0.1:54321
+[PyServe] 2025-05-08 14:30:52 [INFO] User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)
 [PyServe] 2025-05-08 14:30:55 [DEBUG] Serving static file: /path/to/static/css/styles.css (text/css)
-[PyServe] 2025-05-08 14:31:02 [INFO] Received GET request for /nonexistent from 127.0.0.1:54325
 [PyServe] 2025-05-08 14:31:02 [WARNING] File not found: /path/to/static/nonexistent</code></pre>
+    </div>
+    
+    <h3>Custom Console Colors</h3>
+    <p>Customize console colors by modifying the formatter configuration:</p>
+    
+    <div class="code-block">
+        <pre><code># Example: Custom colored formatter
+from pyserve.core.logging import ColoredFormatter
+
+formatter = ColoredFormatter()
+formatter.LEVEL_COLORS['INFO'] = COLORS['BLUE']  # Change INFO to blue</code></pre>
     </div>
 </div>
 
 <div class="card">
     <h2>File Logging</h2>
     <p>
-        In addition to console output, PyServe can write logs to a file specified in the configuration.
-        File logs use a standard format without colors:
+        File logs use a standard format without colors for better parsing:
     </p>
     
     <div class="code-block">
         <pre><code>[2025-05-08 14:30:45] [INFO] Server running at http://127.0.0.1:8000/
 [2025-05-08 14:30:45] [INFO] Static files directory: /path/to/static
 [2025-05-08 14:30:45] [INFO] Template files directory: /path/to/templates
-[2025-05-08 14:30:52] [INFO] Connected to 127.0.0.1:54321
-[2025-05-08 14:30:52] [INFO] Received GET request for / from 127.0.0.1:54321
-[2025-05-08 14:30:55] [INFO] Received GET request for /static/css/styles.css from 127.0.0.1:54322
-[2025-05-08 14:30:55] [DEBUG] Serving static file: /path/to/static/css/styles.css (text/css)
-[2025-05-08 14:31:02] [INFO] Received GET request for /nonexistent from 127.0.0.1:54325
-[2025-05-08 14:31:02] [WARNING] File not found: /path/to/static/nonexistent</code></pre>
+[2025-05-08 14:30:52] [INFO] Client connected from 127.0.0.1:54321
+[2025-05-08 14:30:52] [INFO] [GET] | / from 127.0.0.1:54321</code></pre>
     </div>
     
+    <h3>Log Rotation</h3>
+    <p>Enable log rotation to prevent log files from growing too large:</p>
+    
+    <div class="code-block">
+        <pre><code>logging:
+  use_rotation: true
+  max_log_size: 52428800  # 50 MB
+  backup_count: 10</code></pre>
+    </div>
+    
+    <p>This configuration will:</p>
+    <ul>
+        <li>Create rotating log files (pyserve.log, pyserve.log.1, pyserve.log.2, etc.)</li>
+        <li>Rotate logs when they reach 50 MB</li>
+        <li>Keep up to 10 backup files</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Structured Logging</h2>
     <p>
-        The log file directory is automatically created if it doesn't exist.
+        PyServe 0.3-async introduces structured JSON logging for better log analysis:
     </p>
+    
+    <div class="code-block">
+        <pre><code>logging:
+  structured_logs: true</code></pre>
+    </div>
+    
+    <p>Example structured log output:</p>
+    
+    <div class="code-block">
+        <pre><code>{
+  "timestamp": "2025-05-08 14:30:45",
+  "level": "INFO",
+  "logger": "pyserve",
+  "message": "Server running at http://127.0.0.1:8000/",
+  "module": "http.server",
+  "function": "start",
+  "line": 156
+}
+
+{
+  "timestamp": "2025-05-08 14:30:52",
+  "level": "INFO",
+  "logger": "pyserve",
+  "message": "[GET] | / from 127.0.0.1:54321",
+  "module": "http.server",
+  "function": "handle_request",
+  "line": 243,
+  "request_id": "req_abc123",
+  "client_ip": "127.0.0.1",
+  "method": "GET",
+  "path": "/",
+  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+}</code></pre>
+    </div>
+    
+    <div class="alert alert-info">
+        <p><strong>Tip:</strong> Structured logs are ideal for integration with log analysis tools like ELK Stack, Splunk, or Grafana Loki.</p>
+    </div>
 </div>
 
 <div class="card">
     <h2>Debug Mode</h2>
     <p>
-        PyServe includes a debug mode that enables more verbose logging. Debug mode can be enabled in two ways:
+        Enable debug mode for more verbose logging:
     </p>
     
     <h3>Command Line</h3>
-    <p>Use the <code>-d</code> or <code>--debug</code> flag when starting the server:</p>
-    
     <div class="code-block">
         <pre><code>python run.py -d</code></pre>
     </div>
     
     <h3>Configuration File</h3>
-    <p>Set the logging level to <code>DEBUG</code> in your configuration file:</p>
-    
     <div class="code-block">
         <pre><code>logging:
-  level: DEBUG
-  log_file: ./logs/debug.log
-  console_output: true</code></pre>
+  level: DEBUG</code></pre>
     </div>
     
-    <div class="alert alert-info">
-        <p><strong>Note:</strong> The command line <code>-d</code> flag overrides the logging level in the configuration file.</p>
+    <h3>Environment Variable</h3>
+    <div class="code-block">
+        <pre><code>export PYSERVE_LOG_LEVEL=DEBUG
+python run.py</code></pre>
     </div>
     
     <h3>What Debug Mode Logs</h3>
-    <p>Debug mode includes detailed information about:</p>
     <ul>
-        <li>Server configuration and setup</li>
         <li>Request/response details</li>
-        <li>Static file serving</li>
-        <li>Template rendering</li>
+        <li>Static file serving operations</li>
+        <li>Template rendering processes</li>
         <li>Reverse proxy operations</li>
-        <li>Internal server state</li>
+        <li>Configuration loading details</li>
+        <li>Internal server state changes</li>
     </ul>
 </div>
 
 <div class="card">
     <h2>Using the Logger</h2>
     <p>
-        If you're extending PyServe or integrating it into your application, you can use the logger directly:
+        When extending PyServe or creating custom handlers, use the logger directly:
     </p>
     
     <div class="code-block">
         <pre><code>from pyserve import get_logger
 
-# Create a logger with default settings
-logger = get_logger()
-
-# Or specify custom settings
-logger = get_logger(level=logging.DEBUG, log_file='./myapp.log')
+# Create a logger with custom settings
+logger = get_logger(
+    level=logging.DEBUG,
+    log_file='./my-custom.log',
+    use_rotation=True,
+    structured_logs=True
+)
 
 # Use the logger
 logger.info("Application started")
-logger.debug("Debug information")
-logger.warning("Warning message")
-logger.error("Error occurred")
-logger.critical("Critical failure")</code></pre>
+logger.debug("Processing request")
+logger.warning("Unusual parameter received")
+logger.error("Failed to connect to database")
+logger.critical("Server cannot continue")
+
+# Log exceptions with traceback
+try:
+    risky_operation()
+except Exception as e:
+    logger.exception("Operation failed")</code></pre>
     </div>
     
-    <p>
-        The <code>PyServeLogger</code> class provides a wrapper around Python's standard logging module with
-        additional features like colored console output:
-    </p>
-    
+    <h3>Advanced Logger Configuration</h3>
     <div class="code-block">
-        <pre><code>from pyserve.logging import PyServeLogger
-import logging
+        <pre><code>from pyserve.core.logging import PyServeLogger, FileHandler, ConsoleHandler
 
-logger = PyServeLogger(level=logging.DEBUG, log_file='./custom.log')
-logger.info("Custom logger initialized")</code></pre>
+# Create custom logger with multiple handlers
+logger = PyServeLogger(level=logging.DEBUG)
+
+# Add custom file handler
+file_handler = FileHandler(
+    'custom.log',
+    level=logging.INFO,
+    structured=True
+)
+logger.logger.addHandler(file_handler)
+
+# Add custom console handler
+console_handler = ConsoleHandler(
+    level=logging.DEBUG,
+    use_colors=True
+)
+logger.logger.addHandler(console_handler)</code></pre>
     </div>
 </div>
 
 <div class="card">
-    <h2>Log Rotation</h2>
-    <p>
-        PyServe does not currently include built-in log rotation. For production environments, you should
-        consider using an external log rotation tool like <code>logrotate</code> on Linux or implementing
-        your own log rotation logic.
-    </p>
+    <h2>Log Analysis Examples</h2>
     
-    <p>Example logrotate configuration for PyServe logs:</p>
-    
+    <h3>Filter logs by level</h3>
     <div class="code-block">
-        <pre><code>/path/to/logs/pyserve.log {
-    daily
-    missingok
-    rotate 14
-    compress
-    delaycompress
-    notifempty
-    create 0640 www-data www-data
-    sharedscripts
-    postrotate
-        systemctl reload pyserve > /dev/null 2>&1 || true
-    endscript
-}</code></pre>
-    </div>
-</div>
+        <pre><code># Show only errors and critical messages
+grep -E '\[ERROR\]|\[CRITICAL\]' ./logs/pyserve.log
 
-<div class="card">
-    <h2>Examples</h2>
-    
-    <h3>Basic Logging Configuration</h3>
-    <p>Standard configuration with INFO level logging to console and file:</p>
-    
-    <div class="code-block">
-        <pre><code>logging:
-  level: INFO
-  log_file: ./logs/pyserve.log
-  console_output: true</code></pre>
+# Show only request logs
+grep '\[GET\]\|\[POST\]\|\[PUT\]\|\[DELETE\]' ./logs/pyserve.log</code></pre>
     </div>
     
-    <h3>Debug Configuration</h3>
-    <p>Configuration for detailed debugging:</p>
-    
+    <h3>Analyze structured logs with jq</h3>
     <div class="code-block">
-        <pre><code>logging:
-  level: DEBUG
-  log_file: ./logs/debug.log
-  console_output: true</code></pre>
-    </div>
-    
-    <h3>Production Configuration</h3>
-    <p>Configuration for a production environment (less verbose, focused on important events):</p>
-    
-    <div class="code-block">
-        <pre><code>logging:
-  level: WARNING
-  log_file: /var/log/pyserve/server.log
-  console_output: false</code></pre>
+        <pre><code># Show all ERROR level logs
+jq 'select(.level == "ERROR")' ./logs/pyserve.log
+
+# Show logs for specific client IP
+jq 'select(.client_ip == "192.168.1.100")' ./logs/pyserve.log
+
+# Get request statistics
+jq -s 'group_by(.method) | map({method: .[0].method, count: length})' ./logs/pyserve.log</code></pre>
     </div>
 </div>
 
