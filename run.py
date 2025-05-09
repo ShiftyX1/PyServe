@@ -17,16 +17,19 @@ def parse_arguments():
         description='PyServe - Async HTTP Server\nVersion {}'.format(__version__),
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+PyServe version {}
+Github repository, feel free to contribute: https://github.com/ShiftyX1/PyServe
+
 Examples:
-  python async_run.py                       # Run with default settings
-  python async_run.py -p 8080               # Run on port 8080
-  python async_run.py -H 0.0.0.0 -p 8000    # Run on all interfaces
-  python async_run.py -s ./my_static        # Use custom static directory
-  python async_run.py -t ./my_templates     # Use custom templates directory
-  python async_run.py -c /path/to/config.yaml  # Use custom config file
-  python async_run.py --proxy host:port/path   # Enable reverse proxy
-  python async_run.py --ssl --cert ./ssl/cert.pem --key ./ssl/key.pem  # Run with HTTPS
-"""
+  python run.py                       # Run with default settings
+  python run.py -p 8080               # Run on port 8080
+  python run.py -H 0.0.0.0 -p 8000    # Run on all interfaces
+  python run.py -s ./my_static        # Use custom static directory
+  python run.py -t ./my_templates     # Use custom templates directory
+  python run.py -c /path/to/config.yaml  # Use custom config file
+  python run.py --proxy host:port/path   # Enable reverse proxy
+  python run.py --ssl --cert ./ssl/cert.pem --key ./ssl/key.pem  # Run with HTTPS
+""".format(__version__)
     )
     
     parser.add_argument('-c', '--config', type=str, default='./config.yaml',
@@ -111,15 +114,44 @@ async def run_server():
     args = parse_arguments()
     
     if args.version:
-        from pyserve import __version__
+        print(f"Don't forget to star the repository if you like it!")
+        print(f"https://github.com/ShiftyX1/PyServe")
+        print(f"\nThanks for using PyServe!")
+        print(f"Made with ❤️ by ShiftyX1")
+        print(f"\nReady to serve!")
+        # https://patorjk.com/software/taag/ font name: "RubiFont" but actually I can't say that I'm 100% sure :D
+#         print("""
+# ▗▄▄▖▗▖  ▗▖▗▄▄▖▗▄▄▄▖▗▄▄▖ ▗▖  ▗▖▗▄▄▄▖
+# ▐▌ ▐▌▝▚▞▘▐▌   ▐▌   ▐▌ ▐▌▐▌  ▐▌▐▌   
+# ▐▛▀▘  ▐▌  ▝▀▚▖▐▛▀▀▘▐▛▀▚▖▐▌  ▐▌▐▛▀▀▘
+# ▐▌    ▐▌ ▗▄▄▞▘▐▙▄▄▖▐▌ ▐▌ ▝▚▞▘ ▐▙▄▄▖
+                                                  
+# """)
+        # https://patorjk.com/software/taag/ font name: "ANSI Shadow"
+        print("""
+██████╗ ██╗   ██╗███████╗███████╗██████╗ ██╗   ██╗███████╗    ██╗   ██╗ ██████╗    ██████╗ 
+██╔══██╗╚██╗ ██╔╝██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝    ██║   ██║██╔═████╗   ╚════██╗
+██████╔╝ ╚████╔╝ ███████╗█████╗  ██████╔╝██║   ██║█████╗      ██║   ██║██║██╔██║    █████╔╝
+██╔═══╝   ╚██╔╝  ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝      ╚██╗ ██╔╝████╔╝██║    ╚═══██╗
+██║        ██║   ███████║███████╗██║  ██║ ╚████╔╝ ███████╗     ╚████╔╝ ╚██████╔╝██╗██████╔╝
+╚═╝        ╚═╝   ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝      ╚═══╝   ╚═════╝ ╚═╝╚═════╝ 
+""")
         print(f"PyServe version {__version__}")
         sys.exit(0)
     
     config = Configuration(args.config)
     
+    log_level = config.get_log_level()
+    logger_config = config.logging_config
     logger = get_logger(
-        level=config.get_log_level(),
-        log_file=config.logging_config.get('log_file')
+        level=log_level,
+        log_file=logger_config.get('log_file'),
+        console_output=logger_config.get('console_output', True),
+        use_colors=logger_config.get('use_colors', True),
+        use_rotation=logger_config.get('use_rotation', False),
+        max_log_size=logger_config.get('max_log_size', 10485760),
+        backup_count=logger_config.get('backup_count', 5),
+        structured_logs=logger_config.get('structured_logs', False)
     )
     
     if args.proxy:
@@ -133,28 +165,8 @@ async def run_server():
         test_config = TestConfiguration()
         
         if args.test == 'all':
-            load_result = test_config.test_load_config()
-            if not load_result:
-                logger.critical("Configuration load test failed")
-                sys.exit(3)
-                
-            config_result = test_config.test_configuration()
-            dir_result = test_config.test_static_directories()
-            
-            if config_result == 2:
-                logger.critical("Critical configuration tests failed")
-                sys.exit(2)
-            elif config_result == 1:
-                logger.warning("Optional configuration tests failed")
-                
-            if not dir_result:
-                logger.warning("Directory tests failed")
-                
-            if config_result > 0 or not dir_result:
-                sys.exit(1)
-            else:
-                logger.info("All tests passed successfully")
-                sys.exit(0)
+            exit_code = test_config.run_all_tests()
+            sys.exit(exit_code)
                 
         elif args.test == 'configuration':
             load_result = test_config.test_load_config()
@@ -222,8 +234,9 @@ async def run_server():
             static_dir, 
             template_dir, 
             backlog, 
-            debug=True if args.debug else False, 
+            debug=args.debug or log_level <= 10,
             redirections=config.redirections,
+            locations=config.locations,
             reverse_proxy=reverse_proxy,
             ssl_cert=ssl_cert,
             ssl_key=ssl_key
@@ -231,7 +244,6 @@ async def run_server():
         
         setup_signal_handlers(loop, server)
         
-        from pyserve import __version__
         protocol = "HTTPS" if use_ssl else "HTTP"
         logger.info(f"PyServe v{__version__} (Async {protocol}) starting")
         if args.debug:
@@ -248,6 +260,7 @@ async def run_server():
         if reverse_proxy:
             for proxy in reverse_proxy:
                 logger.info(f"Reverse proxy configured: {proxy['path']} -> {proxy['host']}:{proxy['port']}")
+        
         try:
             await server.start()
         except asyncio.exceptions.CancelledError:

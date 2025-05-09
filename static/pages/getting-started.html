@@ -1,6 +1,6 @@
 <div class="header-banner">
     <h1>Getting Started</h1>
-    <p>Quick guide to get up and running with PyServe</p>
+    <p>Quick guide to get up and running with PyServe 0.3-async</p>
 </div>
 
 <div class="card">
@@ -10,19 +10,25 @@
     <ol>
         <li>Clone the repository:
             <div class="code-block">
-                <pre><code>git clone https://github.com/yourusername/pyserve.git
-cd pyserve</code></pre>
+                <pre><code>git clone https://github.com/ShiftyX1/PyServe.git
+cd PyServe</code></pre>
+            </div>
+        </li>
+        <li>Create a virtual environment (recommended):
+            <div class="code-block">
+                <pre><code>python -m venv pyserve-env
+source pyserve-env/bin/activate  # On Windows: pyserve-env\Scripts\activate</code></pre>
             </div>
         </li>
         <li>Install dependencies:
             <div class="code-block">
-                <pre><code>pip install pyyaml</code></pre>
+                <pre><code>pip install pyyaml aiofiles aiohttp</code></pre>
             </div>
         </li>
     </ol>
     
     <div class="alert alert-info">
-        <p><strong>Note:</strong> PyServe is designed to use only the Python Standard Library plus PyYAML for configuration, keeping external dependencies to a minimum.</p>
+        <p><strong>Note:</strong> PyServe 0.3-async requires Python 3.7+ and now uses modern async/await syntax throughout.</p>
     </div>
 </div>
 
@@ -40,6 +46,7 @@ cd pyserve</code></pre>
         <li>Port: 8000</li>
         <li>Static files directory: ./static</li>
         <li>Templates directory: ./templates</li>
+        <li>Log level: INFO</li>
     </ul>
     
     <p>You can now access your server at <a href="http://localhost:8000" target="_blank">http://localhost:8000</a></p>
@@ -103,6 +110,11 @@ cd pyserve</code></pre>
                 <td>Run tests</td>
                 <td><code>python run.py --test all</code></td>
             </tr>
+            <tr>
+                <td><code>--ssl</code></td>
+                <td>Enable SSL/TLS</td>
+                <td><code>python run.py --ssl --cert cert.pem --key key.pem</code></td>
+            </tr>
         </tbody>
     </table>
 </div>
@@ -128,9 +140,88 @@ cd pyserve</code></pre>
         <pre><code>python run.py --proxy localhost:3000/api</code></pre>
     </div>
     
+    <h3>Running with SSL</h3>
+    <p>To run PyServe with HTTPS encryption:</p>
+    <div class="code-block">
+        <pre><code>python run.py --ssl --cert ./ssl/cert.pem --key ./ssl/key.pem</code></pre>
+    </div>
+    
     <div class="alert alert-warning">
         <p><strong>Security Warning:</strong> When exposing PyServe to the internet, ensure you understand the security implications. PyServe is designed for development and internal use, not as a production web server.</p>
     </div>
+</div>
+
+<div class="card">
+    <h2>Environment Variables</h2>
+    <p>PyServe 0.3-async supports environment variables for configuration:</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Environment Variable</th>
+                <th>Configuration Key</th>
+                <th>Default</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>PYSERVE_HOST</code></td>
+                <td>server.host</td>
+                <td>127.0.0.1</td>
+            </tr>
+            <tr>
+                <td><code>PYSERVE_PORT</code></td>
+                <td>server.port</td>
+                <td>8000</td>
+            </tr>
+            <tr>
+                <td><code>PYSERVE_STATIC_DIR</code></td>
+                <td>http.static_dir</td>
+                <td>./static</td>
+            </tr>
+            <tr>
+                <td><code>PYSERVE_LOG_LEVEL</code></td>
+                <td>logging.level</td>
+                <td>INFO</td>
+            </tr>
+            <tr>
+                <td><code>PYSERVE_SSL_ENABLED</code></td>
+                <td>ssl.enabled</td>
+                <td>false</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <p>Example using environment variables:</p>
+    <div class="code-block">
+        <pre><code>export PYSERVE_PORT=8080
+export PYSERVE_LOG_LEVEL=DEBUG
+python run.py</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Testing Your Installation</h2>
+    <p>PyServe includes a built-in testing framework to verify your installation:</p>
+    
+    <div class="code-block">
+        <pre><code># Test all components
+python run.py --test all
+
+# Test configuration only
+python run.py --test configuration
+
+# Test directories only
+python run.py --test directories</code></pre>
+    </div>
+    
+    <p>The tests will verify:</p>
+    <ul>
+        <li>Configuration file loading and validation</li>
+        <li>Required directory creation</li>
+        <li>SSL configuration (if enabled)</li>
+        <li>All mandatory and optional settings</li>
+    </ul>
 </div>
 
 <div class="card">
@@ -142,5 +233,7 @@ cd pyserve</code></pre>
         <li>Understand how to <a href="#" data-page="static-files">serve static files</a></li>
         <li>Explore <a href="#" data-page="templates">templating capabilities</a></li>
         <li>Set up <a href="#" data-page="reverse-proxy">reverse proxying</a> to other services</li>
+        <li>Configure <a href="#" data-page="secure">SSL/TLS encryption</a> for secure connections</li>
+        <li>Customize the <a href="#" data-page="logging">logging system</a></li>
     </ul>
 </div>

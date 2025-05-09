@@ -1,0 +1,212 @@
+<div class="header-banner">
+    <h1>Authentication</h1>
+    <p>Learn how to secure your routes with Basic HTTP Authentication in PyServe</p>
+</div>
+
+<div class="card">
+    <h2>Basic Authentication Overview</h2>
+    <p>
+        PyServe supports Basic HTTP Authentication to protect specific routes in your application. 
+        This feature allows you to restrict access to certain paths, requiring users to provide valid credentials before accessing the content.
+    </p>
+    
+    <div class="alert alert-info">
+        <p><strong>Note:</strong> Basic Authentication sends credentials encoded (not encrypted). For production use, always enable SSL/TLS to secure the authentication process.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Configuration</h2>
+    <p>
+        Authentication is configured in the <code>locations</code> section of your <code>config.yaml</code> file. 
+        You can protect multiple routes with different credentials.
+    </p>
+    
+    <div class="code-block">
+        <pre><code>server:
+  locations:
+    /admin:  # Route to protect
+      auth:
+        type: basic
+        username: admin
+        password: secretpass
+    /api:    # Another protected route
+      auth:
+        type: basic
+        username: apiuser
+        password: apipass</code></pre>
+    </div>
+    
+    <h3>Configuration Options</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Description</th>
+                <th>Required</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>type</code></td>
+                <td>Authentication type (currently only 'basic' is supported)</td>
+                <td>Yes</td>
+            </tr>
+            <tr>
+                <td><code>username</code></td>
+                <td>Username for authentication</td>
+                <td>Yes</td>
+            </tr>
+            <tr>
+                <td><code>password</code></td>
+                <td>Password for authentication</td>
+                <td>Yes</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>How It Works</h2>
+    <p>When a client tries to access a protected route:</p>
+    
+    <ol>
+        <li>If no credentials are provided, the server responds with a 401 status code and a <code>WWW-Authenticate</code> header</li>
+        <li>The browser shows a login dialog to the user</li>
+        <li>User enters credentials which are base64 encoded and sent in the <code>Authorization</code> header</li>
+        <li>Server validates the credentials and either:
+            <ul>
+                <li>Grants access if credentials are valid</li>
+                <li>Returns 401 if credentials are invalid</li>
+            </ul>
+        </li>
+    </ol>
+    
+    <div class="code-block">
+        <pre><code># Example HTTP exchange:
+
+-> Client request without credentials:
+GET /admin HTTP/1.1
+Host: example.com
+
+<- Server response:
+HTTP/1.1 401 Unauthorized
+WWW-Authenticate: Basic realm="Restricted Area"
+
+-> Client request with credentials:
+GET /admin HTTP/1.1
+Host: example.com
+Authorization: Basic YWRtaW46cGFzc3dvcmQ=
+
+<- Server response if credentials are valid:
+HTTP/1.1 200 OK
+...</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Security Best Practices</h2>
+    <ul>
+        <li>Always use HTTPS (SSL/TLS) when using Basic Authentication</li>
+        <li>Use strong passwords</li>
+        <li>Consider implementing rate limiting for failed authentication attempts</li>
+        <li>Use environment variables for sensitive credentials instead of hardcoding them in config files</li>
+        <li>Regularly rotate credentials</li>
+        <li>Consider using more secure authentication methods for sensitive data</li>
+    </ul>
+    
+    <div class="alert alert-warning">
+        <p><strong>Warning:</strong> Basic Authentication should not be used as the sole security measure for highly sensitive data. Consider implementing additional security measures like session management or token-based authentication for such cases.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Logging</h2>
+    <p>
+        Authentication attempts are logged for security monitoring. Failed authentication attempts are logged at WARNING level, 
+        while successful ones are logged at DEBUG level.
+    </p>
+    
+    <div class="code-block">
+        <pre><code>[2024-03-21 14:30:45] [WARNING] Invalid credentials for user: admin
+[2024-03-21 14:30:52] [DEBUG] Basic auth successful for user: admin</code></pre>
+    </div>
+    
+    <p>
+        Enable DEBUG level logging to see detailed authentication information:
+    </p>
+    
+    <div class="code-block">
+        <pre><code>logging:
+  level: DEBUG</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Examples</h2>
+    
+    <h3>Protecting Multiple Routes</h3>
+    <div class="code-block">
+        <pre><code>server:
+  locations:
+    /admin:
+      auth:
+        type: basic
+        username: admin
+        password: adminpass
+    /api:
+      auth:
+        type: basic
+        username: apiuser
+        password: apipass
+    /docs:
+      auth:
+        type: basic
+        username: docs
+        password: docspass</code></pre>
+    </div>
+    
+    <h3>Using Environment Variables</h3>
+    <div class="code-block">
+        <pre><code># Set environment variables
+export ADMIN_USER=admin
+export ADMIN_PASS=secretpass
+
+# In config.yaml
+server:
+  locations:
+    /admin:
+      auth:
+        type: basic
+        username: ${ADMIN_USER}
+        password: ${ADMIN_PASS}</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Troubleshooting</h2>
+    
+    <h3>Common Issues</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Problem</th>
+                <th>Possible Solution</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Authentication dialog appears repeatedly</td>
+                <td>Check if credentials are correct and properly configured in config.yaml</td>
+            </tr>
+            <tr>
+                <td>No authentication prompt</td>
+                <td>Verify the route is properly configured in the locations section</td>
+            </tr>
+            <tr>
+                <td>Credentials not working</td>
+                <td>Check log files for detailed error messages and verify credentials in config</td>
+            </tr>
+        </tbody>
+    </table>
+</div>

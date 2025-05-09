@@ -12,7 +12,7 @@
         <div class="logo-container">
             <img src="/static/images/logo.png" alt="PyServe Logo" class="logo">
             <h1>PyServe</h1>
-            <p class="version">v0.2-async</p>
+            <p class="version">v0.3-async</p>
         </div>
         <ul class="nav-links">
             <li><a href="#" class="active" data-page="home">Home</a></li>
@@ -20,6 +20,7 @@
             <li><a href="#" data-page="configuration">Configuration</a></li>
             <li><a href="#" data-page="static-files">Static Files</a></li>
             <li><a href="#" data-page="secure">Secure Connections</a></li>
+            <li><a href="#" data-page="authentication">Authentication</a></li>
             <li><a href="#" data-page="templates">Templates</a></li>
             <li><a href="#" data-page="redirects">Redirects</a></li>
             <li><a href="#" data-page="reverse-proxy">Reverse Proxy</a></li>
@@ -42,8 +43,9 @@
             <div class="header-banner">
                 <h1>PyServe Documentation</h1>
                 <p>Simple, Fast, and Flexible asynchronous HTTP Server in Python</p>
+                <div class="version-badge">Version 0.3-async</div>
             </div>
-
+            
             <div class="card">
                 <h2>Welcome to PyServe</h2>
                 <p>
@@ -84,14 +86,78 @@
                     </div>
                 </div>
             </div>
-
+            
+            <div class="card">
+                <h2>What's New in 0.3-async</h2>
+                <div class="highlight-box">
+                    <h3>Modular Architecture</h3>
+                    <ul>
+                        <li>Complete refactoring with modular structure</li>
+                        <li>Improved code organization and maintainability</li>
+                        <li>Easier to extend and customize</li>
+                    </ul>
+                    
+                    <h3>Enhanced Configuration</h3>
+                    <ul>
+                        <li>Advanced configuration validation</li>
+                        <li>Environment variable support</li>
+                        <li>Improved error handling</li>
+                    </ul>
+                    
+                    <h3>Better Logging System</h3>
+                    <ul>
+                        <li>Structured logging support</li>
+                        <li>Log rotation capabilities</li>
+                        <li>Multiple formatter options</li>
+                    </ul>
+                </div>
+            </div>
+            
             <div class="card">
                 <h2>Quick Start</h2>
                 <div class="code-block">
                     <pre><code>$ python run.py</code></pre>
                 </div>
-                <p>That's all it takes to start the server with default settings! Visit <a href="http://localhost:8000">http://localhost:8000</a> to see it in action. (actually, you already see it 😎)</p>
+                <p>That's all it takes to start the server with default settings! Visit <a href="http://localhost:8000">http://localhost:8000</a> to see it in action.</p>
                 <a href="#" class="button" data-page="getting-started">Get Started →</a>
+            </div>
+            
+            <div class="card">
+                <h2>Architecture Overview</h2>
+                <p>PyServe 0.3-async introduces a clean, modular architecture:</p>
+                
+                <div class="architecture-diagram">
+                    <div class="arch-section">
+                        <h4>Core</h4>
+                        <ul>
+                            <li>Base server abstraction</li>
+                            <li>TCP server implementation</li>
+                            <li>HTTP server layer</li>
+                            <li>Configuration management</li>
+                            <li>Logging system</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="arch-section">
+                        <h4>HTTP Handlers</h4>
+                        <ul>
+                            <li>Static file handler</li>
+                            <li>Template handler</li>
+                            <li>Redirect handler</li>
+                            <li>Reverse proxy handler</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="arch-section">
+                        <h4>Utilities</h4>
+                        <ul>
+                            <li>Template engine</li>
+                            <li>Security utilities</li>
+                            <li>Async helpers</li>
+                            <li>Testing framework</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
     </main>

@@ -1,6 +1,6 @@
 <div class="header-banner">
     <h1>Configuration</h1>
-    <p>Learn how to configure PyServe using YAML files</p>
+    <p>Learn how to configure PyServe 0.3-async using YAML files and environment variables</p>
 </div>
 
 <div class="card">
@@ -8,7 +8,7 @@
     <p>PyServe uses YAML configuration files for setting up the server. By default, the server looks for a <code>config.yaml</code> file in the current directory, but you can specify a different location using the <code>-c</code> or <code>--config</code> option.</p>
     
     <div class="alert alert-info">
-        <p><strong>Note:</strong> Command line arguments always override configuration file settings.</p>
+        <p><strong>Note:</strong> Command line arguments always override configuration file settings, and environment variables override configuration files but not command line arguments.</p>
     </div>
 </div>
 
@@ -17,23 +17,36 @@
     <p>When you first run PyServe, it creates a default <code>config.yaml</code> file with the following structure:</p>
     
     <div class="code-block">
-        <pre><code>http:
-  static_dir: ./static
-  templates_dir: ./templates
-logging:
-  console_output: true
-  level: INFO
-  log_file: ./logs/pyserve.log
-server:
-  backlog: 5
+        <pre><code>server:
   host: 127.0.0.1
   port: 8000
+  backlog: 5
   redirect_instructions:
     - /home: /index.html
+    - /docs: /docs.html
   reverse_proxy:
     - path: /api
       host: localhost
-      port: 3000</code></pre>
+      port: 3000
+
+http:
+  static_dir: ./static
+  templates_dir: ./templates
+
+ssl:
+  enabled: false
+  cert_file: ./ssl/cert.pem
+  key_file: ./ssl/key.pem
+
+logging:
+  level: INFO
+  log_file: ./logs/pyserve.log
+  console_output: true
+  use_colors: true
+  use_rotation: false
+  max_log_size: 10485760  # 10 MB
+  backup_count: 5
+  structured_logs: false</code></pre>
     </div>
 </div>
 
@@ -70,12 +83,12 @@ server:
             <tr>
                 <td><code>redirect_instructions</code></td>
                 <td>URL redirection rules</td>
-                <td>See example below</td>
+                <td>See example above</td>
             </tr>
             <tr>
                 <td><code>reverse_proxy</code></td>
                 <td>Reverse proxy configuration</td>
-                <td>See example below</td>
+                <td>See example above</td>
             </tr>
         </tbody>
     </table>
@@ -101,6 +114,36 @@ server:
                 <td><code>templates_dir</code></td>
                 <td>Directory for template files</td>
                 <td>./templates</td>
+            </tr>
+        </tbody>
+    </table>
+    
+    <h3>SSL Configuration</h3>
+    <p>The <code>ssl</code> section controls SSL/TLS settings:</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Option</th>
+                <th>Description</th>
+                <th>Default</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>enabled</code></td>
+                <td>Enable/disable SSL</td>
+                <td>false</td>
+            </tr>
+            <tr>
+                <td><code>cert_file</code></td>
+                <td>Path to SSL certificate file</td>
+                <td>./ssl/cert.pem</td>
+            </tr>
+            <tr>
+                <td><code>key_file</code></td>
+                <td>Path to SSL private key file</td>
+                <td>./ssl/key.pem</td>
             </tr>
         </tbody>
     </table>
@@ -132,8 +175,90 @@ server:
                 <td>Whether to output logs to console</td>
                 <td>true</td>
             </tr>
+            <tr>
+                <td><code>use_colors</code></td>
+                <td>Enable colored console output</td>
+                <td>true</td>
+            </tr>
+            <tr>
+                <td><code>use_rotation</code></td>
+                <td>Enable log rotation</td>
+                <td>false</td>
+            </tr>
+            <tr>
+                <td><code>max_log_size</code></td>
+                <td>Maximum log file size (bytes)</td>
+                <td>10485760</td>
+            </tr>
+            <tr>
+                <td><code>backup_count</code></td>
+                <td>Number of backup log files</td>
+                <td>5</td>
+            </tr>
+            <tr>
+                <td><code>structured_logs</code></td>
+                <td>Enable JSON structured logging</td>
+                <td>false</td>
+            </tr>
         </tbody>
     </table>
+</div>
+
+<div class="card">
+    <h2>Environment Variables</h2>
+    <p>PyServe 0.3-async supports environment variables for configuration overrides:</p>
+    
+    <div class="code-block">
+        <pre><code># Example: Override host and port
+export PYSERVE_HOST=0.0.0.0
+export PYSERVE_PORT=9000
+python run.py
+
+# Example: Enable SSL
+export PYSERVE_SSL_ENABLED=true
+export PYSERVE_SSL_CERT=/path/to/cert.pem
+export PYSERVE_SSL_KEY=/path/to/key.pem
+python run.py</code></pre>
+    </div>
+    
+    <p>Available environment variables:</p>
+    <ul>
+        <li><code>PYSERVE_HOST</code> - Server host</li>
+        <li><code>PYSERVE_PORT</code> - Server port</li>
+        <li><code>PYSERVE_STATIC_DIR</code> - Static files directory</li>
+        <li><code>PYSERVE_TEMPLATES_DIR</code> - Template files directory</li>
+        <li><code>PYSERVE_LOG_LEVEL</code> - Logging level</li>
+        <li><code>PYSERVE_LOG_FILE</code> - Log file path</li>
+        <li><code>PYSERVE_SSL_ENABLED</code> - Enable SSL (true/false)</li>
+        <li><code>PYSERVE_SSL_CERT</code> - SSL certificate file</li>
+        <li><code>PYSERVE_SSL_KEY</code> - SSL key file</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Configuration Validation</h2>
+    <p>PyServe 0.3-async includes a built-in configuration validator:</p>
+    
+    <div class="code-block">
+        <pre><code># Validate configuration
+python run.py --test configuration
+
+# Run all tests including configuration
+python run.py --test all</code></pre>
+    </div>
+    
+    <p>The validator checks:</p>
+    <ul>
+        <li>Required field presence</li>
+        <li>Data type correctness</li>
+        <li>Value ranges (e.g., port numbers)</li>
+        <li>File and directory existence</li>
+        <li>SSL certificate validity</li>
+    </ul>
+    
+    <div class="alert alert-info">
+        <p><strong>Tip:</strong> Always validate your configuration after making changes, especially in production environments.</p>
+    </div>
 </div>
 
 <div class="card">
@@ -145,7 +270,8 @@ server:
   redirect_instructions:
     - /home: /index.html
     - /blog: https://example.com/blog
-    - /docs: /documentation.html</code></pre>
+    - /docs: /documentation.html
+    - /api/v1: /api/v2  # Redirect old API versions</code></pre>
     </div>
     
     <p>This configuration will:</p>
@@ -153,6 +279,7 @@ server:
         <li>Redirect <code>/home</code> to <code>/index.html</code> on the same server</li>
         <li>Redirect <code>/blog</code> to <code>https://example.com/blog</code> (external URL)</li>
         <li>Redirect <code>/docs</code> to <code>/documentation.html</code> on the same server</li>
+        <li>Redirect <code>/api/v1</code> to <code>/api/v2</code> for API versioning</li>
     </ul>
 </div>
 
@@ -167,18 +294,22 @@ server:
       host: localhost
       port: 3000
     - path: /admin
-      host: localhost
-      port: 8080</code></pre>
+      host: admin-server
+      port: 8080
+    - path: /websocket
+      host: ws-server
+      port: 8765</code></pre>
     </div>
     
     <p>This configuration will:</p>
     <ul>
         <li>Forward all requests starting with <code>/api</code> to <code>localhost:3000</code></li>
-        <li>Forward all requests starting with <code>/admin</code> to <code>localhost:8080</code></li>
+        <li>Forward all requests starting with <code>/admin</code> to <code>admin-server:8080</code></li>
+        <li>Forward all requests starting with <code>/websocket</code> to <code>ws-server:8765</code></li>
     </ul>
     
     <div class="alert alert-info">
-        <p><strong>Note:</strong> PyServe will automatically add appropriate headers like <code>X-Forwarded-For</code>, <code>X-Forwarded-Host</code>, and <code>X-Forwarded-Proto</code> to the proxied requests.</p>
+        <p><strong>Note:</strong> PyServe automatically adds appropriate headers like <code>X-Forwarded-For</code>, <code>X-Forwarded-Host</code>, and <code>X-Forwarded-Proto</code> to the proxied requests.</p>
     </div>
 </div>
 
@@ -187,56 +318,116 @@ server:
     <p>Here's an example of a more complex configuration file:</p>
     
     <div class="code-block">
-        <pre><code>http:
-  static_dir: ./public
-  templates_dir: ./views
-logging:
-  console_output: true
-  level: DEBUG
-  log_file: ./logs/detailed.log
-server:
-  backlog: 10
+        <pre><code>server:
   host: 0.0.0.0
-  port: 80
+  port: 443
+  backlog: 50
   redirect_instructions:
-    - /home: /index.html
-    - /contact: /contact.html
-    - /news: https://example.com/blog
+    - /: /index.html
+    - /help: /documentation.html
+    - /old-api: https://api-v2.example.com
   reverse_proxy:
-    - path: /api/v1
+    - path: /api/v2
       host: api-server
       port: 8001
     - path: /admin
       host: admin-panel
       port: 8002
-    - path: /dashboard
-      host: dashboard-service
-      port: 3000</code></pre>
+    - path: /ws
+      host: websocket-server
+      port: 8765
+
+http:
+  static_dir: /var/www/static
+  templates_dir: /var/www/templates
+
+ssl:
+  enabled: true
+  cert_file: /etc/ssl/certs/example.com.crt
+  key_file: /etc/ssl/private/example.com.key
+
+logging:
+  level: INFO
+  log_file: /var/log/pyserve/server.log
+  console_output: false
+  use_colors: false
+  use_rotation: true
+  max_log_size: 52428800  # 50 MB
+  backup_count: 10
+  structured_logs: true</code></pre>
     </div>
     
-    <p>This configuration:</p>
+    <p>This production-ready configuration:</p>
     <ul>
-        <li>Serves static files from <code>./public</code> and templates from <code>./views</code></li>
-        <li>Uses detailed DEBUG level logging with output to console and file</li>
-        <li>Listens on all interfaces (0.0.0.0) on port 80 with a connection backlog of 10</li>
-        <li>Sets up three redirects for various paths</li>
-        <li>Configures three different reverse proxy endpoints for different services</li>
+        <li>Runs on all interfaces on port 443 (HTTPS)</li>
+        <li>Enables SSL with production certificates</li>
+        <li>Uses larger connection backlog for high-traffic scenarios</li>
+        <li>Implements multiple redirects and reverse proxies</li>
+        <li>Enables log rotation with structured JSON logs</li>
+        <li>Disables console output for production efficiency</li>
     </ul>
 </div>
 
 <div class="card">
-    <h2>Testing Your Configuration</h2>
-    <p>PyServe includes a built-in configuration testing tool. To verify your configuration file:</p>
+    <h2>Modular Configuration</h2>
+    <p>PyServe 0.3-async introduces modular configuration management:</p>
     
     <div class="code-block">
-        <pre><code>python run.py --test configuration</code></pre>
+        <pre><code># Load configuration programmatically
+from pyserve import Configuration
+
+# Create configuration object
+config = Configuration('/path/to/config.yaml')
+
+# Add a reverse proxy programmatically
+config.add_reverse_proxy('/newapi', 'api-server', 9000)
+
+# Configure SSL programmatically
+config.configure_ssl(
+    enabled=True,
+    cert_file='/path/to/cert.pem',
+    key_file='/path/to/key.pem'
+)
+
+# Save changes to file
+config.save_config()</code></pre>
     </div>
     
-    <p>This will check your configuration file and return one of the following exit codes:</p>
+    <div class="alert alert-info">
+        <p><strong>New in 0.3-async:</strong> The Configuration class now supports hot reloading, validation, and programmatic modification.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Configuration Best Practices</h2>
+    
+    <h3>Development vs Production</h3>
+    <p>Use different configuration files for different environments:</p>
+    
+    <div class="code-block">
+        <pre><code># Development
+python run.py -c config-dev.yaml
+
+# Staging
+python run.py -c config-staging.yaml
+
+# Production
+python run.py -c /etc/pyserve/config-prod.yaml</code></pre>
+    </div>
+    
+    <h3>Security Considerations</h3>
     <ul>
-        <li><code>0</code> - All tests passed successfully</li>
-        <li><code>1</code> - Optional configuration tests failed</li>
-        <li><code>2</code> - Mandatory configuration tests failed</li>
-        <li><code>3</code> - Configuration file could not be loaded</li>
+        <li>Never commit sensitive data (SSL keys, passwords) to version control</li>
+        <li>Use environment variables for sensitive configuration</li>
+        <li>Set restrictive file permissions on configuration files</li>
+        <li>Validate all configuration values</li>
+    </ul>
+    
+    <h3>Performance Tuning</h3>
+    <ul>
+        <li>Increase <code>backlog</code> for high-traffic scenarios</li>
+        <li>Enable log rotation to prevent disk space issues</li>
+        <li>Use structured logs for better analysis tools</li>
+        <li>Disable console output in production</li>
     </ul>
 </div>
