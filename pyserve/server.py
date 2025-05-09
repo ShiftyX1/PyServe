@@ -1,14 +1,14 @@
-import socket
+import asyncio
 import os
-import threading
-import http.client
 from urllib.parse import parse_qs, urlparse
-from .logging import PyServeLogger
-from .template import TemplateEngine
 from http import HTTPStatus
-from .utils import get_redirections
 import io
 import gzip
+import aiofiles
+import aiohttp
+from .logging import PyServeLogger
+from .template import AsyncTemplateEngine
+from .utils import get_redirections
 
 class HTTPRequest:
     def __init__(self, raw_request):
@@ -59,7 +59,7 @@ class HTTPResponse:
 
         if 'server' not in self.headers:
             from pyserve import __version__
-            self.headers['server'] = f'PyServe/{__version__}'
+            self.headers['server'] = f'PyServe/{__version__} (Async)'
 
     def to_bytes(self):
         status_line = f"HTTP/1.1 {self.status_code} {HTTPStatus(self.status_code).phrase}\r\n"
@@ -71,76 +71,91 @@ class HTTPResponse:
             
         return response
 
-class TCPServer:
-    def __init__(self, host, port, backlog=5):
+class AsyncTCPServer:
+    def __init__(self, host, port, backlog=5, ssl_context=None):
         self.host = host
         self.port = port
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.socket.bind((self.host, self.port))
-        self.socket.listen(backlog)
+        self.backlog = backlog
+        self.ssl_context = ssl_context
+        self.server = None
         self.logger = PyServeLogger()
         self.running = False
 
-    def accept(self):
-        return self.socket.accept()
+    async def start(self):
+        self.server = await asyncio.start_server(
+            self.handle_client, 
+            self.host, 
+            self.port,
+            backlog=self.backlog,
+            ssl=self.ssl_context
+        )
+        self.running = True
+        
+        protocol = "https" if self.ssl_context else "http"
+        self.logger.info(f"Server started on {protocol}://{self.host}:{self.port}")
+        
+        async with self.server:
+            await self.server.serve_forever()
 
-    def close(self):
+    async def stop(self):
         self.logger.info("Shutting down server...")
         self.running = False
-        self.socket.close()
+        if self.server:
+            self.server.close()
+            await self.server.wait_closed()
 
-    def run(self):
-        self.running = True
-        self.logger.info(f"Server started on {self.host}:{self.port}")
+    async def handle_client(self, reader, writer):
+        client_addr = writer.get_extra_info('peername')
+        self.logger.info(f"Connected to {client_addr[0]}:{client_addr[1]}")
         
-        while self.running:
-            try:
-                client_socket, client_address = self.accept()
-                client_thread = threading.Thread(
-                    target=self.handle_client,
-                    args=(client_socket, client_address)
-                )
-                client_thread.daemon = True
-                client_thread.start()
-            except Exception as e:
-                if self.running:  # Only log if not deliberately shutting down
-                    self.logger.error(f"Error accepting connection: {e}")
-
-    def handle_client(self, client_socket, client_address):
-        self.logger.info(f"Connected to {client_address[0]}:{client_address[1]}")
         try:
-            client_socket.settimeout(30)  # 30 second timeout
-            request_data = client_socket.recv(4096)
+            request_data = await asyncio.wait_for(reader.read(4096), timeout=30)
             
             if not request_data:
                 return
                 
-            response = self.handle_request(request_data, client_address)
-            client_socket.sendall(response.to_bytes())
+            response = await self.handle_request(request_data, client_addr)
+            writer.write(response.to_bytes())
+            await writer.drain()
+        except asyncio.TimeoutError:
+            self.logger.warning(f"Timeout reading from client {client_addr}")
         except Exception as e:
-            self.logger.error(f"Error handling client {client_address}: {e}")
+            self.logger.error(f"Error handling client {client_addr}: {e}")
         finally:
-            client_socket.close()
+            writer.close()
+            try:
+                await writer.wait_closed()
+            except ConnectionResetError: # TODO: Find a better way to handle this
+                pass
 
-    def handle_request(self, request_data, client_address):
+    async def handle_request(self, request_data, client_address):
         return HTTPResponse(
             status_code=200,
-            body=b"TCP Server is running"
+            body=b"Async TCP Server is running"
         )
 
-
-class HTTPServer(TCPServer):
+class AsyncHTTPServer(AsyncTCPServer):
     def __init__(self, host, port, static_dir="./static", template_dir="./templates", 
-                 backlog=5, debug=False, redirections=None, reverse_proxy=None):
-        super().__init__(host, port, backlog)
+                 backlog=5, debug=False, redirections=None, reverse_proxy=None,
+                 ssl_cert=None, ssl_key=None):
+        ssl_context = None
+        if ssl_cert and ssl_key:
+            import ssl
+            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            try:
+                ssl_context.load_cert_chain(ssl_cert, ssl_key)
+            except Exception as e:
+                raise ValueError(f"Error loading SSL certificates: {e}")
+        
+        super().__init__(host, port, backlog, ssl_context)
         self.static_dir = os.path.abspath(static_dir)
-        self.template_engine = TemplateEngine(template_dir)
+        self.template_engine = AsyncTemplateEngine(template_dir)
         self.debug = debug
         self.redirections = get_redirections(redirections or [])
         self.reverse_proxy = reverse_proxy or []
+        self.client_session = None
+        self.ssl_enabled = ssl_context is not None
         
-        # Create static directory if it doesn't exist
         os.makedirs(self.static_dir, exist_ok=True)
         
         self.content_types = {
@@ -155,6 +170,15 @@ class HTTPServer(TCPServer):
             '.svg': 'image/svg+xml',
             '.ico': 'image/x-icon',
         }
+    
+    async def start(self):
+        self.client_session = aiohttp.ClientSession()
+        await super().start()
+    
+    async def stop(self):
+        if self.client_session:
+            await self.client_session.close()
+        await super().stop()
 
     def handle_redirection(self, request):
         """
@@ -178,7 +202,7 @@ class HTTPServer(TCPServer):
 
         return HTTPResponse(302, headers={'Location': target_url})
 
-    def handle_request(self, request_data, client_address):
+    async def handle_request(self, request_data, client_address):
         request = HTTPRequest(request_data)
         
         if not request.method or not request.path:
@@ -186,46 +210,49 @@ class HTTPServer(TCPServer):
             
         self.logger.info(f"Received {request.method} request for {request.path} from {client_address[0]}:{client_address[1]}")
 
-        # Check if reverse proxy is needed
         for proxy_config in self.reverse_proxy:
             proxy_path = proxy_config.get('path', '/')
             if request.path.startswith(proxy_path):
                 self.logger.info(f"Proxying request {request.path} to {proxy_config['host']}:{proxy_config['port']}")
-                return self.handle_reverse_proxy(request, proxy_config)
+                return await self.handle_reverse_proxy(request, proxy_config)
         
-        # Normal request processing if not proxying
         if request.path in self.redirections:
             self.logger.info(f"Redirecting {request.path} to {self.redirections[request.path]}")
             return self.handle_redirection(request)
         elif request.path == '/':
-            return self.handle_root(request)
+            return await self.handle_root(request)
         elif request.path.startswith('/static/'):
-            return self.handle_static_file(request)
+            return await self.handle_static_file(request)
         else:
             file_path = os.path.join(self.static_dir, request.path.lstrip('/'))
             if os.path.isfile(file_path):
-                return self.serve_static_file(file_path)
+                return await self.serve_static_file(file_path)
             else:
-                return self.error_response(404, "Not Found", f"The requested URL {request.path} was not found on this server.")
+                return await self.error_response(404, "Not Found", f"The requested URL {request.path} was not found on this server.")
 
-    def handle_root(self, request):
-        html = """
+    async def handle_root(self, request):
+        ssl_status = "✅ HTTPS connection (SSL/TLS enabled)" if self.ssl_enabled else "⚠️ HTTP connection (SSL/TLS disabled)"
+        
+        html = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <title>PyServe - Welcome</title>
             <style>
-                body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-                h1 { color: #2c3e50; }
-                .container { max-width: 800px; margin: 0 auto; }
-                .info { background-color: #f8f9fa; padding: 20px; border-radius: 5px; }
+                body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                h1 {{ color: #2c3e50; }}
+                .container {{ max-width: 800px; margin: 0 auto; }}
+                .info {{ background-color: #f8f9fa; padding: 20px; border-radius: 5px; }}
+                .ssl-enabled {{ color: green; }}
+                .ssl-disabled {{ color: orange; }}
             </style>
         </head>
         <body>
             <div class="container">
                 <h1>Welcome to PyServe!</h1>
                 <div class="info">
-                    <p>Your HTTP server is running successfully.</p>
+                    <p>Your Async HTTP server is running successfully.</p>
+                    <p class="{('ssl-enabled' if self.ssl_enabled else 'ssl-disabled')}">{ssl_status}</p>
                     <p>You can place static files in the <code>static</code> directory.</p>
                     <p>You can find more information about PyServe in the <a href="/docs">documentation</a>.</p>
                     <p>Or you can just visit <a href="https://github.com/ShiftyX1/PyServe">GitHub repository</a> to get more information.</p>
@@ -237,7 +264,7 @@ class HTTPServer(TCPServer):
         """
         return HTTPResponse(200, body=html.encode())
 
-    def handle_static_file(self, request):
+    async def handle_static_file(self, request):
         file_path = os.path.normpath(os.path.join(
             self.static_dir,
             request.path.replace('/static/', '', 1)
@@ -245,24 +272,24 @@ class HTTPServer(TCPServer):
         
         if not file_path.startswith(self.static_dir):
             self.logger.warning(f"Attempted directory traversal: {request.path}")
-            return self.error_response(403, "Forbidden", "You don't have permission to access this resource.")
+            return await self.error_response(403, "Forbidden", "You don't have permission to access this resource.")
             
-        return self.serve_static_file(file_path)
+        return await self.serve_static_file(file_path)
 
-    def serve_static_file(self, file_path):
+    async def serve_static_file(self, file_path):
         if not os.path.exists(file_path):
             self.logger.warning(f"File not found: {file_path}")
-            return self.error_response(404, "Not Found", f"The requested file {os.path.basename(file_path)} was not found.")
+            return await self.error_response(404, "Not Found", f"The requested file {os.path.basename(file_path)} was not found.")
             
         if not os.path.isfile(file_path):
-            return self.error_response(403, "Forbidden", "You don't have permission to access this resource.")
+            return await self.error_response(403, "Forbidden", "You don't have permission to access this resource.")
         
         try:
             _, file_extension = os.path.splitext(file_path)
             content_type = self.content_types.get(file_extension.lower(), 'application/octet-stream')
             
-            with open(file_path, 'rb') as file:
-                content = file.read()
+            async with aiofiles.open(file_path, 'rb') as file:
+                content = await file.read()
                 
             headers = {
                 'content-type': content_type,
@@ -274,15 +301,15 @@ class HTTPServer(TCPServer):
             return HTTPResponse(200, headers=headers, body=content)
         except Exception as e:
             self.logger.error(f"Error serving {file_path}: {e}")
-            return self.error_response(500, "Internal Server Error", "An unexpected error occurred while processing your request.")
+            return await self.error_response(500, "Internal Server Error", "An unexpected error occurred while processing your request.")
         
-    def error_response(self, status_code, status_text, error_details):
-        error_template = self.template_engine.render_error(status_code, status_text, error_details)
+    async def error_response(self, status_code, status_text, error_details):
+        error_template = await self.template_engine.render_error(status_code, status_text, error_details)
         return HTTPResponse(status_code, body=error_template.encode())
     
-    def handle_reverse_proxy(self, request, proxy_config):
+    async def handle_reverse_proxy(self, request, proxy_config):
         """
-        Handles request through reverse proxy
+        Handles request through reverse proxy using aiohttp
         
         Args:
             request: HTTP-request from client
@@ -312,18 +339,16 @@ class HTTPServer(TCPServer):
                 if query_parts:
                     query_string = "?" + "&".join(query_parts)
                     
-            full_path = target_path + query_string
+            target_url = f"http://{target_host}:{target_port}{target_path}{query_string}"
                 
             if self.debug:
-                self.logger.debug(f"Connecting to {target_host}:{target_port}")
+                self.logger.debug(f"Connecting to {target_url}")
                 
-            conn = http.client.HTTPConnection(target_host, target_port, timeout=30)
-            
             proxy_headers = {}
             for name, value in request.headers.items():
                 if name.lower() not in ['connection', 'keep-alive', 'proxy-authenticate', 
-                                         'proxy-authorization', 'te', 'trailers', 
-                                         'transfer-encoding', 'upgrade']:
+                                       'proxy-authorization', 'te', 'trailers', 
+                                       'transfer-encoding', 'upgrade']:
                     proxy_headers[name] = value
                     
             proxy_headers['host'] = f"{target_host}:{target_port}"
@@ -335,53 +360,48 @@ class HTTPServer(TCPServer):
                 proxy_headers['x-forwarded-for'] = request.headers.get('remote_addr', '')
                 
             proxy_headers['x-forwarded-host'] = request.headers.get('host', '')
-            proxy_headers['x-forwarded-proto'] = 'http'  # Предполагаем HTTP
+            proxy_headers['x-forwarded-proto'] = 'http'
             
             if self.debug:
-                self.logger.debug(f"Proxy request: {request.method} {full_path}")
+                self.logger.debug(f"Proxy request: {request.method} {target_url}")
                 self.logger.debug(f"Proxy headers: {proxy_headers}")
             
-            conn.request(request.method, full_path, request.body, proxy_headers)
-            
-            response = conn.getresponse()
-            
-            body = response.read()
-            
-            content_encoding = response.getheader('content-encoding', '').lower()
-            if content_encoding == 'gzip':
-                try:
-                    gzip_file = gzip.GzipFile(fileobj=io.BytesIO(body))
-                    body = gzip_file.read()
-                except Exception as e:
-                    self.logger.error(f"Error decompressing gzip response: {e}")
-                    
-            response_headers = {}
-            for header, value in response.getheaders():
-                if header.lower() not in ['connection', 'keep-alive', 'proxy-authenticate', 
-                                            'proxy-authorization', 'te', 'trailers', 
-                                            'transfer-encoding']:
-                    response_headers[header.lower()] = value
-                    
-            if content_encoding == 'gzip':
-                response_headers['content-length'] = str(len(body))
-                if 'content-encoding' in response_headers:
-                    del response_headers['content-encoding']
-                    
-            from pyserve import __version__
-            via_header = f"1.1 PyServe/{__version__} (Reverse Proxy)"
-            response_headers['via'] = via_header
-            
-            conn.close()
-            
-            return HTTPResponse(response.status, response_headers, body)
-            
+            async with self.client_session.request(
+                method=request.method, 
+                url=target_url,
+                headers=proxy_headers,
+                data=request.body,
+                allow_redirects=False
+            ) as resp:
+                body = await resp.read()
+                
+                # Handle gzip encoding
+                content_encoding = resp.headers.get('content-encoding', '').lower()
+                if content_encoding == 'gzip':
+                    try:
+                        gzip_file = gzip.GzipFile(fileobj=io.BytesIO(body))
+                        body = gzip_file.read()
+                    except Exception as e:
+                        self.logger.error(f"Error decompressing gzip response: {e}")
+                        
+                response_headers = {}
+                for header, value in resp.headers.items():
+                    if header.lower() not in ['connection', 'keep-alive', 'proxy-authenticate', 
+                                             'proxy-authorization', 'te', 'trailers', 
+                                             'transfer-encoding']:
+                        response_headers[header.lower()] = value
+                        
+                if content_encoding == 'gzip':
+                    response_headers['content-length'] = str(len(body))
+                    if 'content-encoding' in response_headers:
+                        del response_headers['content-encoding']
+                        
+                from pyserve import __version__
+                via_header = f"1.1 PyServe/{__version__} (Async Reverse Proxy)"
+                response_headers['via'] = via_header
+                
+                return HTTPResponse(resp.status, response_headers, body)
+                
         except Exception as e:
-            self.logger.error(f"Reverse proxy error: {e}")
-            return self.error_response(502, "Bad Gateway", f"Error proxying to {proxy_config['host']}:{proxy_config['port']}")
-    
-    def forward_proxy(self, request):
-        """
-        Forward proxy (not implemented yet)
-        """
-        self.logger.warning("Forward proxy not implemented yet")
-        return self.error_response(501, "Not Implemented", "Forward proxy is not implemented yet")
+            self.logger.error(f"Async reverse proxy error: {e}")
+            return await self.error_response(502, "Bad Gateway", f"Error proxying to {proxy_config['host']}:{proxy_config['port']}")
