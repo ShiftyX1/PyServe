@@ -72,10 +72,11 @@ class HTTPResponse:
         return response
 
 class AsyncTCPServer:
-    def __init__(self, host, port, backlog=5):
+    def __init__(self, host, port, backlog=5, ssl_context=None):
         self.host = host
         self.port = port
         self.backlog = backlog
+        self.ssl_context = ssl_context
         self.server = None
         self.logger = PyServeLogger()
         self.running = False
@@ -85,10 +86,13 @@ class AsyncTCPServer:
             self.handle_client, 
             self.host, 
             self.port,
-            backlog=self.backlog
+            backlog=self.backlog,
+            ssl=self.ssl_context
         )
         self.running = True
-        self.logger.info(f"Server started on {self.host}:{self.port}")
+        
+        protocol = "https" if self.ssl_context else "http"
+        self.logger.info(f"Server started on {protocol}://{self.host}:{self.port}")
         
         async with self.server:
             await self.server.serve_forever()
@@ -105,7 +109,6 @@ class AsyncTCPServer:
         self.logger.info(f"Connected to {client_addr[0]}:{client_addr[1]}")
         
         try:
-            # Set a timeout for reading
             request_data = await asyncio.wait_for(reader.read(4096), timeout=30)
             
             if not request_data:
@@ -120,7 +123,10 @@ class AsyncTCPServer:
             self.logger.error(f"Error handling client {client_addr}: {e}")
         finally:
             writer.close()
-            await writer.wait_closed()
+            try:
+                await writer.wait_closed()
+            except ConnectionResetError: # TODO: Find a better way to handle this
+                pass
 
     async def handle_request(self, request_data, client_address):
         return HTTPResponse(
@@ -130,16 +136,26 @@ class AsyncTCPServer:
 
 class AsyncHTTPServer(AsyncTCPServer):
     def __init__(self, host, port, static_dir="./static", template_dir="./templates", 
-                 backlog=5, debug=False, redirections=None, reverse_proxy=None):
-        super().__init__(host, port, backlog)
+                 backlog=5, debug=False, redirections=None, reverse_proxy=None,
+                 ssl_cert=None, ssl_key=None):
+        ssl_context = None
+        if ssl_cert and ssl_key:
+            import ssl
+            ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            try:
+                ssl_context.load_cert_chain(ssl_cert, ssl_key)
+            except Exception as e:
+                raise ValueError(f"Error loading SSL certificates: {e}")
+        
+        super().__init__(host, port, backlog, ssl_context)
         self.static_dir = os.path.abspath(static_dir)
         self.template_engine = AsyncTemplateEngine(template_dir)
         self.debug = debug
         self.redirections = get_redirections(redirections or [])
         self.reverse_proxy = reverse_proxy or []
         self.client_session = None
+        self.ssl_enabled = ssl_context is not None
         
-        # Create static directory if it doesn't exist
         os.makedirs(self.static_dir, exist_ok=True)
         
         self.content_types = {
@@ -156,12 +172,10 @@ class AsyncHTTPServer(AsyncTCPServer):
         }
     
     async def start(self):
-        # Create aiohttp client session for reverse proxy
         self.client_session = aiohttp.ClientSession()
         await super().start()
     
     async def stop(self):
-        # Close aiohttp client session
         if self.client_session:
             await self.client_session.close()
         await super().stop()
@@ -196,14 +210,12 @@ class AsyncHTTPServer(AsyncTCPServer):
             
         self.logger.info(f"Received {request.method} request for {request.path} from {client_address[0]}:{client_address[1]}")
 
-        # Check if reverse proxy is needed
         for proxy_config in self.reverse_proxy:
             proxy_path = proxy_config.get('path', '/')
             if request.path.startswith(proxy_path):
                 self.logger.info(f"Proxying request {request.path} to {proxy_config['host']}:{proxy_config['port']}")
                 return await self.handle_reverse_proxy(request, proxy_config)
         
-        # Normal request processing if not proxying
         if request.path in self.redirections:
             self.logger.info(f"Redirecting {request.path} to {self.redirections[request.path]}")
             return self.handle_redirection(request)
@@ -219,16 +231,20 @@ class AsyncHTTPServer(AsyncTCPServer):
                 return await self.error_response(404, "Not Found", f"The requested URL {request.path} was not found on this server.")
 
     async def handle_root(self, request):
-        html = """
+        ssl_status = "✅ HTTPS connection (SSL/TLS enabled)" if self.ssl_enabled else "⚠️ HTTP connection (SSL/TLS disabled)"
+        
+        html = f"""
         <!DOCTYPE html>
         <html>
         <head>
             <title>PyServe - Welcome</title>
             <style>
-                body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
-                h1 { color: #2c3e50; }
-                .container { max-width: 800px; margin: 0 auto; }
-                .info { background-color: #f8f9fa; padding: 20px; border-radius: 5px; }
+                body {{ font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }}
+                h1 {{ color: #2c3e50; }}
+                .container {{ max-width: 800px; margin: 0 auto; }}
+                .info {{ background-color: #f8f9fa; padding: 20px; border-radius: 5px; }}
+                .ssl-enabled {{ color: green; }}
+                .ssl-disabled {{ color: orange; }}
             </style>
         </head>
         <body>
@@ -236,6 +252,7 @@ class AsyncHTTPServer(AsyncTCPServer):
                 <h1>Welcome to PyServe!</h1>
                 <div class="info">
                     <p>Your Async HTTP server is running successfully.</p>
+                    <p class="{('ssl-enabled' if self.ssl_enabled else 'ssl-disabled')}">{ssl_status}</p>
                     <p>You can place static files in the <code>static</code> directory.</p>
                     <p>You can find more information about PyServe in the <a href="/docs">documentation</a>.</p>
                     <p>Or you can just visit <a href="https://github.com/ShiftyX1/PyServe">GitHub repository</a> to get more information.</p>
@@ -327,7 +344,6 @@ class AsyncHTTPServer(AsyncTCPServer):
             if self.debug:
                 self.logger.debug(f"Connecting to {target_url}")
                 
-            # Prepare headers for proxying
             proxy_headers = {}
             for name, value in request.headers.items():
                 if name.lower() not in ['connection', 'keep-alive', 'proxy-authenticate', 
@@ -350,7 +366,6 @@ class AsyncHTTPServer(AsyncTCPServer):
                 self.logger.debug(f"Proxy request: {request.method} {target_url}")
                 self.logger.debug(f"Proxy headers: {proxy_headers}")
             
-            # Make the request using aiohttp
             async with self.client_session.request(
                 method=request.method, 
                 url=target_url,
@@ -369,7 +384,6 @@ class AsyncHTTPServer(AsyncTCPServer):
                     except Exception as e:
                         self.logger.error(f"Error decompressing gzip response: {e}")
                         
-                # Copy response headers
                 response_headers = {}
                 for header, value in resp.headers.items():
                     if header.lower() not in ['connection', 'keep-alive', 'proxy-authenticate', 

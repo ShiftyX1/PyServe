@@ -25,6 +25,7 @@ Examples:
   python async_run.py -t ./my_templates     # Use custom templates directory
   python async_run.py -c /path/to/config.yaml  # Use custom config file
   python async_run.py --proxy host:port/path   # Enable reverse proxy
+  python async_run.py --ssl --cert ./ssl/cert.pem --key ./ssl/key.pem  # Run with HTTPS
 """
     )
     
@@ -46,6 +47,16 @@ Examples:
                         help='Configure reverse proxy with format host:port/path')
     parser.add_argument('--test', type=str, choices=['all', 'configuration', 'directories'],
                         help='Run tests')
+    
+    ssl_group = parser.add_argument_group('SSL Options')
+    ssl_group.add_argument('--ssl', action='store_true',
+                        help='Enable SSL/TLS (HTTPS)')
+    ssl_group.add_argument('--cert', type=str,
+                        help='Path to SSL certificate file')
+    ssl_group.add_argument('--key', type=str,
+                        help='Path to SSL private key file')
+    ssl_group.add_argument('--ssl-config', action='store_true',
+                        help='Configure SSL settings in the config file and exit')
     
     return parser.parse_args()
 
@@ -157,12 +168,50 @@ async def run_server():
             dir_result = test_config.test_static_directories()
             sys.exit(0 if dir_result else 1)
 
+    if args.ssl_config:
+        if not args.ssl or not args.cert or not args.key:
+            logger.error("To configure SSL, you must provide --ssl, --cert and --key options")
+            sys.exit(1)
+            
+        if not os.path.isfile(args.cert):
+            logger.error(f"SSL certificate file not found: {args.cert}")
+            sys.exit(1)
+            
+        if not os.path.isfile(args.key):
+            logger.error(f"SSL key file not found: {args.key}")
+            sys.exit(1)
+            
+        config.configure_ssl(enabled=True, cert_file=args.cert, key_file=args.key)
+        logger.info(f"SSL configuration saved to {config.config_path}")
+        sys.exit(0)
+    
     host = args.host or config.server_config.get('host')
     port = args.port or config.server_config.get('port')
     backlog = config.server_config.get('backlog')
     static_dir = args.static or config.http_config.get('static_dir')
     template_dir = args.templates or config.http_config.get('templates_dir')
     reverse_proxy = config.server_config.get('reverse_proxy', [])
+    
+    use_ssl = args.ssl or config.ssl_config.enabled
+    ssl_cert = None
+    ssl_key = None
+    
+    if use_ssl:
+        ssl_cert = args.cert or config.ssl_config.cert_file
+        ssl_key = args.key or config.ssl_config.key_file
+        
+        if not ssl_cert or not os.path.isfile(ssl_cert):
+            logger.error(f"SSL certificate file not found: {ssl_cert}")
+            logger.info("Disabling SSL. Run with --ssl, --cert and --key to specify valid certificate files.")
+            use_ssl = False
+            ssl_cert = None
+            ssl_key = None
+        elif not ssl_key or not os.path.isfile(ssl_key):
+            logger.error(f"SSL key file not found: {ssl_key}")
+            logger.info("Disabling SSL. Run with --ssl, --cert and --key to specify valid certificate files.")
+            use_ssl = False
+            ssl_cert = None
+            ssl_key = None
     
     try:
         loop = asyncio.get_event_loop()
@@ -175,24 +224,38 @@ async def run_server():
             backlog, 
             debug=True if args.debug else False, 
             redirections=config.redirections,
-            reverse_proxy=reverse_proxy
+            reverse_proxy=reverse_proxy,
+            ssl_cert=ssl_cert,
+            ssl_key=ssl_key
         )
         
         setup_signal_handlers(loop, server)
         
         from pyserve import __version__
-        logger.info(f"PyServe v{__version__} (Async) starting")
+        protocol = "HTTPS" if use_ssl else "HTTP"
+        logger.info(f"PyServe v{__version__} (Async {protocol}) starting")
         if args.debug:
             logger.debug(f"Configuration loaded: {config.server_config}")
-        logger.info(f"Server running at http://{host}:{port}/")
+        
+        protocol_url = "https" if use_ssl else "http"
+        logger.info(f"Server running at {protocol_url}://{host}:{port}/")
         logger.info(f"Static files directory: {os.path.abspath(static_dir)}")
         logger.info(f"Template files directory: {os.path.abspath(template_dir)}")
         
+        if use_ssl:
+            logger.info(f"SSL enabled with certificate: {ssl_cert}")
+            
         if reverse_proxy:
             for proxy in reverse_proxy:
                 logger.info(f"Reverse proxy configured: {proxy['path']} -> {proxy['host']}:{proxy['port']}")
-        
-        await server.start()
+        try:
+            await server.start()
+        except asyncio.exceptions.CancelledError:
+            logger.info("Server was cancelled by user")
+            sys.exit(0)
+        except Exception as e:
+            logger.critical(f"Failed to start server: {e}")
+            sys.exit(1)
         
     except Exception as e:
         logger.critical(f"Failed to start server: {e}")
