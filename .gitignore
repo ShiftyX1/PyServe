@@ -18,3 +18,8 @@ __pycache__/
 *.log.*.*.*.*.*.*.*
 
 ssl/
+
+# Just development local files
+collected_files_*.zip
+collect_files.py
+collected_files_*/
