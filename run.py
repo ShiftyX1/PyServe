@@ -118,7 +118,6 @@ async def run_server():
         print(f"https://github.com/ShiftyX1/PyServe")
         print(f"\nThanks for using PyServe!")
         print(f"Made with ❤️ by ShiftyX1")
-        print(f"\nReady to serve!")
         # https://patorjk.com/software/taag/ font name: "RubiFont" but actually I can't say that I'm 100% sure :D
 #         print("""
 # ▗▄▄▖▗▖  ▗▖▗▄▄▖▗▄▄▄▖▗▄▄▖ ▗▖  ▗▖▗▄▄▄▖
@@ -136,7 +135,10 @@ async def run_server():
 # ██║        ██║   ███████║███████╗██║  ██║ ╚████╔╝ ███████╗     ╚████╔╝ ╚██████╔╝██╗██████╔╝
 # ╚═╝        ╚═╝   ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝      ╚═══╝   ╚═════╝ ╚═╝╚═════╝ 
 # """)
+        if __version__.startswith('pre'):
+            print("\nPAY ATTENTION! This is a pre-release version of PyServe. It may contain bugs and unstable features.\nIf you encounter any issues, please report them to the issues page on GitHub.")
         print(f"PyServe version {__version__}")
+        print(f"\nReady to serve!")
         sys.exit(0)
     
     config = Configuration(args.config)
