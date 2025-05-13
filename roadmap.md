@@ -6,17 +6,17 @@ This document outlines the planned development path from the current v0.2-async 
 
 | Version       | Focus                          | Target                            |
 |---------------|--------------------------------|-----------------------------------|
-| v0.2-async    | Async Core & SSL               | Current Release                   |
-| v0.3-async    | Performance & Stability        | Q2 2025                           |
-| v0.4-async    | WebSockets & Extended Protocol | Q3 2025                           |
-| v0.5-async    | Auth & Security                | Q4 2025                           |
-| v0.6-async    | Advanced Proxy & Caching       | Q1 2026                           |
-| v0.7-async    | Templates & Dynamic Content    | Q2 2026                           |
-| v0.8-async    | Plugins & Extensions           | Q3 2026                           |
-| v0.9-async    | Production Hardening           | Q4 2026                           |
-| v1.0-async    | Stable Release                 | Q1 2027                           |
+| v0.2-async    | Async Core & SSL               | ✅                                |
+| v0.3-async    | Performance & Stability        | Current Release 👀                  |
+| v0.4-async    | WebSockets & Extended Protocol | ASAP                           |
+| v0.5-async    | Auth & Security                | ASAP                           |
+| v0.6-async    | Advanced Proxy & Caching       | ASAP                           |
+| v0.7-async    | Templates & Dynamic Content    | ASAP                           |
+| v0.8-async    | Plugins & Extensions           | ASAP                           |
+| v0.9-async    | Production Hardening           | ASAP                           |
+| v1.0-async    | Stable Release                 | Before 2026, I hope                           |
 
-## v0.3-async: Performance & Stability
+## v0.3-async: Performance & Stability (DONE ✅)
 
 - Process model with worker processes support
 - Advanced connection handling
@@ -26,7 +26,7 @@ This document outlines the planned development path from the current v0.2-async 
 - Comprehensive benchmarking suite
 - Memory optimization (Yup, memory optimization in Python, I know 😁)
 
-## v0.4-async: WebSockets & Extended Protocol
+## v0.4-async: WebSockets & Extended Protocol (WIP ⚠️)
 
 - Native WebSocket support
 - WebSocket proxying

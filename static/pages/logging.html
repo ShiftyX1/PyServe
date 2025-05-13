@@ -362,23 +362,105 @@ jq -s 'group_by(.method) | map({method: .[0].method, count: length})' ./logs/pys
     
     <h3>Development</h3>
     <ul>
-        <li>Use DEBUG level during development to see detailed information</li>
-        <li>Enable console output for immediate feedback</li>
-        <li>Use descriptive log messages that include relevant context</li>
+        <li>Use DEBUG level during development</li>
+        <li>Enable console output with colors</li>
+        <li>Include descriptive log messages with context</li>
+        <li>Log both successful operations and errors</li>
     </ul>
     
     <h3>Production</h3>
     <ul>
         <li>Use INFO or WARNING level to reduce log volume</li>
-        <li>Always enable file logging to capture important events</li>
-        <li>Implement log rotation to manage log file size</li>
-        <li>Consider forwarding logs to a centralized logging system</li>
+        <li>Enable file logging with rotation</li>
+        <li>Consider structured logging for analysis tools</li>
+        <li>Disable console output for better performance</li>
+        <li>Implement monitoring alerts for ERROR and CRITICAL levels</li>
     </ul>
     
     <h3>Performance</h3>
     <ul>
-        <li>Higher log levels (INFO, WARNING) have less performance impact than DEBUG</li>
-        <li>File I/O for logging can become a bottleneck under heavy load</li>
-        <li>Consider disabling DEBUG logging in high-traffic scenarios</li>
+        <li>Higher log levels (INFO, WARNING) have less impact than DEBUG</li>
+        <li>File I/O can become a bottleneck under heavy load</li>
+        <li>Consider async logging for high-traffic scenarios</li>
+        <li>Use log aggregation services in production</li>
     </ul>
+</div>
+
+<div class="card">
+    <h2>Custom Log Formatters</h2>
+    <p>Create custom formatters for specific needs:</p>
+    
+    <div class="code-block">
+        <pre><code>from pyserve.core.logging import logging, COLORS
+
+class CustomFormatter(logging.Formatter):
+    def format(self, record):
+        # Add request ID to all log messages
+        if hasattr(record, 'request_id'):
+            record.msg = f"[{record.request_id}] {record.msg}"
+            
+        # Format timestamp
+        timestamp = self.formatTime(record, "%Y-%m-%d %H:%M:%S.%f")[:-3]
+        
+        # Custom format
+        log_format = f"{timestamp} | {record.levelname:8} | {record.module:15} | {record.msg}"
+        
+        # Add color for console
+        if hasattr(record, 'color'):
+            log_format = f"{record.color}{log_format}{COLORS['RESET']}"
+            
+        return log_format</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Integration with External Services</h2>
+    
+    <h3>Syslog</h3>
+    <p>Send logs to syslog server:</p>
+    
+    <div class="code-block">
+        <pre><code>import logging.handlers
+
+syslog_handler = logging.handlers.SysLogHandler(
+    address=('localhost', 514),
+    facility=logging.handlers.SysLogHandler.LOG_LOCAL0
+)
+logger.logger.addHandler(syslog_handler)</code></pre>
+    </div>
+    
+    <h3>Remote Logging</h3>
+    <p>Send logs to remote logging service:</p>
+    
+    <div class="code-block">
+        <pre><code>import logging.handlers
+
+http_handler = logging.handlers.HTTPHandler(
+    'logging.example.com',
+    '/api/logs',
+    method='POST'
+)
+logger.logger.addHandler(http_handler)</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Summary</h2>
+    <p>
+        PyServe 0.3-async's logging system provides powerful tools for monitoring and debugging your server:
+    </p>
+    
+    <ul>
+        <li>Flexible configuration through YAML files and environment variables</li>
+        <li>Multiple log levels for different verbosity needs</li>
+        <li>Colored console output for development</li>
+        <li>Structured JSON logging for production</li>
+        <li>Log rotation to manage disk space</li>
+        <li>Integration with external logging services</li>
+    </ul>
+    
+    <p>
+        By properly configuring and using the logging system, you can easily track server operations,
+        diagnose issues, and monitor performance in both development and production environments.
+    </p>
 </div>
