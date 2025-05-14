@@ -35,7 +35,9 @@ class ConfigLoader:
             
             ConfigLoader._print_colored_error(error_message)
             
-            raise PyServeYAMLException(error_message)
+            # Exit with error code 1
+            # We don't want to raise an exception because we want to exit the program with graceful error handling
+            sys.exit(1)
         except Exception as e:
             raise RuntimeError(f"Error loading configuration: {e}")
     

@@ -20,6 +20,7 @@ class PyServeLogger:
                  max_log_size: int = 10485760,  # 10 MB TODO: Make this configurable
                  backup_count: int = 5,
                  structured_logs: bool = False):
+        self.level = level
         self.logger = logging.getLogger('pyserve')
         self.logger.setLevel(level)
         
@@ -52,7 +53,8 @@ class PyServeLogger:
     
     def debug(self, message: str):
         """Log debug message"""
-        self.logger.debug(message)
+        if self.level == logging.DEBUG:
+            self.logger.debug(message)
     
     def info(self, message: str):
         """Log info message"""

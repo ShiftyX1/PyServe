@@ -1,14 +1,16 @@
 """
 HTTP and WebSocket proxy handler implementation
 """
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from pyserve.http.request import HTTPRequest
 from pyserve.http.response import HTTPResponse
 from pyserve.http.websocket.base import WebSocket
 from pyserve.http.handlers.websocket_proxy import WebSocketProxyHandler
-from pyserve.core.logging import get_logger
+from pyserve.core.logging import configured_logger
+import asyncio
+import aiohttp
 
-logger = get_logger()
+logger = configured_logger
 
 class ProxyHandler:
     def __init__(self, proxy_configs: list):
@@ -55,27 +57,100 @@ class ProxyHandler:
             
         target_host = proxy_config.get('host', 'localhost')
         target_port = proxy_config.get('port', 80)
+        target_path = proxy_config.get('path', '')
         use_ssl = proxy_config.get('ssl', False)
         
         scheme = 'https' if use_ssl else 'http'
-        target_url = f"{scheme}://{target_host}:{target_port}{request.path}"
+        
+        relative_path = request.path
+        if target_path and request.path.startswith(target_path):
+            relative_path = request.path[len(target_path):]
+            if not relative_path:
+                relative_path = '/'
+            elif not relative_path.startswith('/'):
+                relative_path = '/' + relative_path
+        
+        target_url = f"{scheme}://{target_host}:{target_port}{relative_path}"
+        
+        if request.query_params:
+            query_parts = []
+            for key, values in request.query_params.items():
+                for value in values:
+                    query_parts.append(f"{key}={value}")
+            if query_parts:
+                target_url += "?" + "&".join(query_parts)
+        
+        backend_headers = {}
+        skip_headers = {'host', 'connection', 'upgrade', 'transfer-encoding', 'content-length'}
+        
+        for name, value in request.headers.items():
+            if name.lower() not in skip_headers:
+                backend_headers[name] = value
+        
+        client_ip = request.headers.get('x-forwarded-for', 'unknown')
+        backend_headers['X-Forwarded-For'] = client_ip
+        backend_headers['X-Forwarded-Host'] = request.headers.get('host', '')
+        backend_headers['X-Forwarded-Proto'] = 'https' if use_ssl else 'http'
+        backend_headers['X-Real-IP'] = client_ip
+        
+        if request.body and len(request.body) > 0:
+            backend_headers['Content-Length'] = str(len(request.body))
         
         try:
+            logger.info(f"Proxying {request.method} request to {target_url}")
+            
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
+            
             async with self.client_session.request(
                 method=request.method,
                 url=target_url,
-                headers=request.headers,
-                data=request.body,
-                allow_redirects=False
+                headers=backend_headers,
+                data=request.body if request.body else None,
+                allow_redirects=False,
+                timeout=timeout,
+                auto_decompress=True
             ) as response:
                 body = await response.read()
                 
+                response_headers = {}
+                skip_response_headers = {
+                    'connection', 
+                    'transfer-encoding', 
+                    'content-encoding',
+                    'keep-alive',
+                    'upgrade',
+                    'proxy-connection',
+                    'server'
+                }
+                
+                for name, value in response.headers.items():
+                    if name.lower() not in skip_response_headers:
+                        response_headers[name] = value
+                
+                response_headers['content-length'] = str(len(body))
+                
+                response_headers['Via'] = 'pyserve-proxy'
+                
+                from pyserve import __version__
+                response_headers['server'] = f'PyServe/{__version__}'
+                
+                logger.info(f"Proxy response: {response.status} (size: {len(body)} bytes)")
+                logger.debug(f"Response headers: {response_headers}")
+                
                 return HTTPResponse(
                     status_code=response.status,
-                    headers=dict(response.headers),
+                    headers=response_headers,
                     body=body
                 )
                 
+        except aiohttp.ClientError as e:
+            logger.error(f"Proxy client error: {e}")
+            return HTTPResponse(502, body=f"Bad Gateway: {str(e)}")
+        except asyncio.TimeoutError:
+            logger.error("Proxy request timeout")
+            return HTTPResponse(504, body="Gateway Timeout")
         except Exception as e:
             logger.error(f"Proxy error: {e}")
+            import traceback
+            traceback.print_exc()
             return HTTPResponse(502, body="Bad Gateway")

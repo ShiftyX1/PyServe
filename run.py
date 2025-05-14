@@ -50,6 +50,8 @@ Examples:
                         help='Configure reverse proxy with format host:port/path')
     parser.add_argument('--test', type=str, choices=['all', 'configuration', 'directories'],
                         help='Run tests')
+    parser.add_argument('--skip-proxy-check', action='store_true',
+                        help='Skip reverse proxy availability check at startup')
     
     ssl_group = parser.add_argument_group('SSL Options')
     ssl_group.add_argument('--ssl', action='store_true',
@@ -118,23 +120,6 @@ async def run_server():
         print(f"https://github.com/ShiftyX1/PyServe")
         print(f"\nThanks for using PyServe!")
         print(f"Made with ❤️ by ShiftyX1")
-        # https://patorjk.com/software/taag/ font name: "RubiFont" but actually I can't say that I'm 100% sure :D
-#         print("""
-# ▗▄▄▖▗▖  ▗▖▗▄▄▖▗▄▄▄▖▗▄▄▖ ▗▖  ▗▖▗▄▄▄▖
-# ▐▌ ▐▌▝▚▞▘▐▌   ▐▌   ▐▌ ▐▌▐▌  ▐▌▐▌   
-# ▐▛▀▘  ▐▌  ▝▀▚▖▐▛▀▀▘▐▛▀▚▖▐▌  ▐▌▐▛▀▀▘
-# ▐▌    ▐▌ ▗▄▄▞▘▐▙▄▄▖▐▌ ▐▌ ▝▚▞▘ ▐▙▄▄▖
-                                                  
-# """)
-        # https://patorjk.com/software/taag/ font name: "ANSI Shadow"
-#         print("""
-# ██████╗ ██╗   ██╗███████╗███████╗██████╗ ██╗   ██╗███████╗    ██╗   ██╗ ██████╗    ██████╗ 
-# ██╔══██╗╚██╗ ██╔╝██╔════╝██╔════╝██╔══██╗██║   ██║██╔════╝    ██║   ██║██╔═████╗   ╚════██╗
-# ██████╔╝ ╚████╔╝ ███████╗█████╗  ██████╔╝██║   ██║█████╗      ██║   ██║██║██╔██║    █████╔╝
-# ██╔═══╝   ╚██╔╝  ╚════██║██╔══╝  ██╔══██╗╚██╗ ██╔╝██╔══╝      ╚██╗ ██╔╝████╔╝██║    ╚═══██╗
-# ██║        ██║   ███████║███████╗██║  ██║ ╚████╔╝ ███████╗     ╚████╔╝ ╚██████╔╝██╗██████╔╝
-# ╚═╝        ╚═╝   ╚══════╝╚══════╝╚═╝  ╚═╝  ╚═══╝  ╚══════╝      ╚═══╝   ╚═════╝ ╚═╝╚═════╝ 
-# """)
         if __version__.startswith('pre'):
             print("\nPAY ATTENTION! This is a pre-release version of PyServe. It may contain bugs and unstable features.\nIf you encounter any issues, please report them to the issues page on GitHub.")
         print(f"PyServe version {__version__}")
@@ -241,7 +226,8 @@ async def run_server():
             locations=config.locations,
             reverse_proxy=reverse_proxy,
             ssl_cert=ssl_cert,
-            ssl_key=ssl_key
+            ssl_key=ssl_key,
+            do_check_proxy_availability=not args.skip_proxy_check
         )
         
         setup_signal_handlers(loop, server)

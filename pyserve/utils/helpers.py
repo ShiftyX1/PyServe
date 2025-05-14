@@ -2,7 +2,19 @@
 Helper utilities for PyServe
 """
 from typing import Dict, List, Any
+import logging
 
+def get_logger_levels(level: str) -> int:
+    """
+    Get logger level from string
+    """
+    return {
+        'DEBUG': logging.DEBUG,
+        'INFO': logging.INFO,
+        'WARNING': logging.WARNING,
+        'ERROR': logging.ERROR,
+        'CRITICAL': logging.CRITICAL
+    }[level]
 
 def get_redirections(redirections: List[Dict[str, str]]) -> Dict[str, str]:
     """
