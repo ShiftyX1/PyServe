@@ -23,12 +23,12 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    networks:
-      - pyserve-network
+    # networks:
+    #   - pyserve-network
 
-networks:
-  pyserve-network:
-    driver: bridge
+# networks:
+#   pyserve-network:
+#     driver: bridge
 
 volumes:
   pyserve-logs:
