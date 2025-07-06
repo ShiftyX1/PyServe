@@ -7,7 +7,7 @@ services:
       - "8000:8000"
       - "8443:8443"
     volumes:
-      - ./config.docker.yaml:/app/config.docker.yaml:ro
+      - ./config.docker.yaml:/app/config.yaml:ro
       - ./static:/app/static
       - ./templates:/app/templates
       - pyserve-logs:/app/logs
