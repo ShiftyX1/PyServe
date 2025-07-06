@@ -11,5 +11,5 @@ RUN mkdir -p logs ssl static templates && \
 USER pyserve
 EXPOSE 8000 8443
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD python -c "import socket; socket.create_connection(('localhost', 8000), timeout=3)" || exit 1
-CMD ["python", "run.py", "-c", "config.docker.yaml"]
+  CMD python -c "import socket, os; socket.create_connection(('localhost', int(os.environ.get('PYSERVE_PORT', '8000'))), timeout=3)" || exit 1
+CMD ["python", "run.py", "--host", "0.0.0.0"]
