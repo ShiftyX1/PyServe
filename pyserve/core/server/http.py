@@ -65,6 +65,7 @@ class AsyncHTTPServer(AsyncTCPServer):
         self.redirect_handler = RedirectHandler(self.redirections)
         self.template_handler = TemplateHandler(self.template_engine)
         self.proxy_handler = ProxyHandler(self.reverse_proxy)
+        self.proxy_handler.set_template_handler(self.template_handler)
         self.auth_handler = HTTPAuthBase  
         
     async def start(self) -> None:

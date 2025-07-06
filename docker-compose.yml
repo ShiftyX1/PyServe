@@ -1,0 +1,35 @@
+
+services:
+  pyserve:
+    build: .
+    container_name: pyserve
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+    volumes:
+      - ./config.docker.yaml:/app/config.docker.yaml:ro
+      - ./static:/app/static
+      - ./templates:/app/templates
+      - ./logs:/app/logs
+      - ./ssl:/app/ssl:ro
+    environment:
+      - PYTHONPATH=/app
+      - PYSERVE_HOST=0.0.0.0
+      - PYSERVE_PORT=8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8000), timeout=3)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - pyserve-network
+
+networks:
+  pyserve-network:
+    driver: bridge
+
+volumes:
+  pyserve-logs:
+    driver: local

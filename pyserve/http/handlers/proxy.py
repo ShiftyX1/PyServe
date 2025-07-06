@@ -16,9 +16,13 @@ class ProxyHandler:
     def __init__(self, proxy_configs: list):
         self.proxy_configs = proxy_configs
         self.client_session = None
+        self.template_handler = None
         
     def set_client_session(self, session):
         self.client_session = session
+        
+    def set_template_handler(self, template_handler):
+        self.template_handler = template_handler
         
     async def handle(self, request: HTTPRequest, proxy_config: Dict[str, Any]) -> HTTPResponse:
         """Handle HTTP or WebSocket request"""
@@ -46,14 +50,14 @@ class ProxyHandler:
         )
         
         if not success:
-            return HTTPResponse(502, body="Bad Gateway")
+            return await self._handle_error(502, "Bad Gateway", "WebSocket proxy connection failed")
             
         return None
         
     async def _handle_http(self, request: HTTPRequest, proxy_config: Dict[str, Any]) -> HTTPResponse:
         """Handle regular HTTP request"""
         if not self.client_session:
-            return HTTPResponse(503, body="Service Unavailable")
+            return await self._handle_error(503, "Service Unavailable", "Proxy service is not available")
             
         target_host = proxy_config.get('host', 'localhost')
         target_port = proxy_config.get('port', 80)
@@ -145,12 +149,19 @@ class ProxyHandler:
                 
         except aiohttp.ClientError as e:
             logger.error(f"Proxy client error: {e}")
-            return HTTPResponse(502, body=f"Bad Gateway: {str(e)}")
+            return await self._handle_error(502, "Bad Gateway", f"Could not connect to upstream server: {str(e)}")
         except asyncio.TimeoutError:
             logger.error("Proxy request timeout")
-            return HTTPResponse(504, body="Gateway Timeout")
+            return await self._handle_error(504, "Gateway Timeout", "Upstream server did not respond in time")
         except Exception as e:
             logger.error(f"Proxy error: {e}")
             import traceback
             traceback.print_exc()
-            return HTTPResponse(502, body="Bad Gateway")
+            return await self._handle_error(502, "Bad Gateway", "An unexpected error occurred while processing the request")
+    
+    async def _handle_error(self, status_code: int, status_text: str, error_details: str) -> HTTPResponse:
+        if self.template_handler:
+            error_template = await self.template_handler.render_error(status_code, status_text, error_details)
+            return HTTPResponse(status_code, body=error_template)
+        else:
+            return HTTPResponse(status_code, body=f"{status_code} {status_text}: {error_details}")
