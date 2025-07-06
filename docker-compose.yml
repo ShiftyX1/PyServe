@@ -3,22 +3,22 @@ services:
   pyserve:
     build: .
     container_name: pyserve
+    env_file: .env
     ports:
-      - "8000:8000"
-      - "8443:8443"
+      - "${HTTP_PORT:-8000}:${HTTP_PORT:-8000}"
+      - "${HTTPS_PORT:-8443}:${HTTPS_PORT:-8443}"
     volumes:
-      - ./config.docker.yaml:/app/config.yaml:ro
+      - ./config.yaml:/app/config.yaml:ro
       - ./static:/app/static
       - ./templates:/app/templates
       - pyserve-logs:/app/logs
       - ./ssl:/app/ssl:ro
     environment:
       - PYTHONPATH=/app
-      - PYSERVE_HOST=0.0.0.0
-      - PYSERVE_PORT=8000
+      - PYSERVE_PORT=${HTTP_PORT:-8000}
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8000), timeout=3)"]
+      test: ["CMD", "python", "-c", "import socket, os; socket.create_connection(('localhost', int(os.environ.get('PYSERVE_PORT', '8000'))), timeout=3)"]
       interval: 30s
       timeout: 10s
       retries: 3
