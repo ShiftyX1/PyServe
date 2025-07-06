@@ -5,7 +5,12 @@ import logging
 from .logger import PyServeLogger
 from .formatters import ColoredFormatter, StructuredFormatter
 from .handlers import ConsoleHandler, FileHandler, RotatingFileHandler
+from pyserve.core.config import ConfigLoader
+from pyserve.utils import get_logger_levels
 
+config = ConfigLoader.load_yaml('config.yaml')
+
+configured_logger = PyServeLogger(level=get_logger_levels(config.get('logging', {}).get('level', 'DEBUG')))
 
 def get_logger(level=logging.DEBUG, log_file=None, **kwargs) -> PyServeLogger:
     """
@@ -25,6 +30,7 @@ def get_logger(level=logging.DEBUG, log_file=None, **kwargs) -> PyServeLogger:
 __all__ = [
     'PyServeLogger',
     'get_logger',
+    'configured_logger',
     'ColoredFormatter',
     'StructuredFormatter',
     'ConsoleHandler',

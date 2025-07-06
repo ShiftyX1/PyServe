@@ -1,475 +1,348 @@
 <div class="header-banner">
     <h1>API Reference</h1>
-    <p>Detailed documentation of PyServe's classes and methods</p>
+    <p>Complete API documentation of PyServe pre-v0.4-async for developers</p>
 </div>
 
 <div class="card">
-    <h2>Overview</h2>
+    <h2>Core Components</h2>
     <p>
-        This page provides a reference for PyServe's core classes and methods. This documentation is useful for
-        developers who want to extend PyServe functionality or integrate it into their own applications.
+        PyServe pre-v0.4-async is built with a modular architecture, providing several core components that can be used independently or together.
     </p>
-    
-    <div class="alert alert-info">
-        <p><strong>Note:</strong> This documentation is for PyServe version 0.0.2. Future versions may include additional features or changes to existing APIs.</p>
+
+    <h3>AsyncHTTPServer</h3>
+    <div class="code-block">
+        <pre><code>from pyserve import AsyncHTTPServer
+
+server = AsyncHTTPServer(
+    host="127.0.0.1",
+    port=8000,
+    static_dir="./static",
+    template_dir="./templates",
+    backlog=5,
+    debug=False,
+    redirections=[],
+    reverse_proxy=[],
+    locations={},
+    ssl_cert=None,
+    ssl_key=None
+)</code></pre>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Parameter</th>
+                <th>Type</th>
+                <th>Description</th>
+                <th>Default</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>host</code></td>
+                <td>str</td>
+                <td>Host address to bind to</td>
+                <td>127.0.0.1</td>
+            </tr>
+            <tr>
+                <td><code>port</code></td>
+                <td>int</td>
+                <td>Port number to listen on</td>
+                <td>8000</td>
+            </tr>
+            <tr>
+                <td><code>static_dir</code></td>
+                <td>str</td>
+                <td>Directory for static files</td>
+                <td>./static</td>
+            </tr>
+            <tr>
+                <td><code>template_dir</code></td>
+                <td>str</td>
+                <td>Directory for template files</td>
+                <td>./templates</td>
+            </tr>
+            <tr>
+                <td><code>backlog</code></td>
+                <td>int</td>
+                <td>Maximum number of queued connections</td>
+                <td>5</td>
+            </tr>
+            <tr>
+                <td><code>debug</code></td>
+                <td>bool</td>
+                <td>Enable debug mode</td>
+                <td>False</td>
+            </tr>
+            <tr>
+                <td><code>redirections</code></td>
+                <td>List[Dict]</td>
+                <td>List of redirect rules</td>
+                <td>[]</td>
+            </tr>
+            <tr>
+                <td><code>reverse_proxy</code></td>
+                <td>List[Dict]</td>
+                <td>List of proxy configurations</td>
+                <td>[]</td>
+            </tr>
+            <tr>
+                <td><code>locations</code></td>
+                <td>Dict</td>
+                <td>Route-specific configurations</td>
+                <td>{}</td>
+            </tr>
+            <tr>
+                <td><code>ssl_cert</code></td>
+                <td>str</td>
+                <td>Path to SSL certificate file</td>
+                <td>None</td>
+            </tr>
+            <tr>
+                <td><code>ssl_key</code></td>
+                <td>str</td>
+                <td>Path to SSL private key file</td>
+                <td>None</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Configuration Management</h2>
+    <div class="code-block">
+        <pre><code>from pyserve import Configuration
+
+config = Configuration(config_path="./config.yaml")
+
+# Access configuration sections
+server_config = config.server_config
+http_config = config.http_config
+logging_config = config.logging_config
+ssl_config = config.ssl_config
+
+# Get specific values
+host = config.get("server", "host", default="127.0.0.1")
+port = config.get("server", "port", default=8000)
+
+# Set configuration values
+config.set("server", "port", 8080)
+config.save_config()</code></pre>
+    </div>
+
+    <h3>Available Methods</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Method</th>
+                <th>Description</th>
+                <th>Returns</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>get(section, key, default=None)</code></td>
+                <td>Get configuration value</td>
+                <td>Any</td>
+            </tr>
+            <tr>
+                <td><code>set(section, key, value)</code></td>
+                <td>Set configuration value</td>
+                <td>None</td>
+            </tr>
+            <tr>
+                <td><code>save_config()</code></td>
+                <td>Save configuration to file</td>
+                <td>bool</td>
+            </tr>
+            <tr>
+                <td><code>reload()</code></td>
+                <td>Reload configuration from file</td>
+                <td>None</td>
+            </tr>
+            <tr>
+                <td><code>validate()</code></td>
+                <td>Validate configuration</td>
+                <td>Tuple[bool, List[str]]</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Logging System</h2>
+    <div class="code-block">
+        <pre><code>from pyserve import get_logger
+
+logger = get_logger(
+    level="INFO",
+    log_file="./logs/pyserve.log",
+    console_output=True,
+    use_colors=True,
+    use_rotation=False,
+    max_log_size=10485760,  # 10MB
+    backup_count=5,
+    structured_logs=False
+)
+
+# Using the logger
+logger.debug("Debug message")
+logger.info("Info message")
+logger.warning("Warning message")
+logger.error("Error message")
+logger.critical("Critical message")</code></pre>
+    </div>
+
+    <h3>Custom Formatters</h3>
+    <div class="code-block">
+        <pre><code>from pyserve.core.logging import PyServeLogger, FileHandler, ConsoleHandler
+
+# Create custom logger
+logger = PyServeLogger(level="DEBUG")
+
+# Add custom handlers
+file_handler = FileHandler(
+    'custom.log',
+    level="INFO",
+    structured=True
+)
+logger.logger.addHandler(file_handler)
+
+console_handler = ConsoleHandler(
+    level="DEBUG",
+    use_colors=True
+)</code></pre>
     </div>
 </div>
 
 <div class="card">
-    <h2>Core Classes</h2>
+    <h2>HTTP Handlers</h2>
     
-    <h3>HTTPServer</h3>
-    <p>
-        The main server class that handles HTTP requests and responses.
-    </p>
-    
+    <h3>Static File Handler</h3>
     <div class="code-block">
-        <pre><code>class HTTPServer(TCPServer):
-    def __init__(self, host, port, static_dir="./static", 
-                 template_dir="./templates", backlog=5, 
-                 debug=False, redirections=None, reverse_proxy=None):
-        # Initialize the HTTP server
-        # ...
-        
-    def handle_request(self, request_data, client_address):
-        # Process an HTTP request and return a response
-        # ...
-        
-    def handle_static_file(self, request):
-        # Handle requests for static files
-        # ...
-        
-    def serve_static_file(self, file_path):
-        # Serve a static file from the filesystem
-        # ...
-        
-    def error_response(self, status_code, status_text, error_details):
-        # Create an error response with the appropriate template
-        # ...
-        
-    def handle_reverse_proxy(self, request, proxy_config):
-        # Handle reverse proxy requests
-        # ...
-        
-    def handle_redirection(self, request):
-        # Handle URL redirections
-        # ...</code></pre>
+        <pre><code>from pyserve.http.handlers.static import StaticFileHandler
+
+handler = StaticFileHandler(
+    static_dir="./static",
+    debug=False
+)</code></pre>
     </div>
-    
-    <h3>TCPServer</h3>
-    <p>
-        Base server class that handles TCP connections. HTTPServer extends this class.
-    </p>
-    
+
+    <h3>Template Handler</h3>
     <div class="code-block">
-        <pre><code>class TCPServer:
-    def __init__(self, host, port, backlog=5):
-        # Initialize the TCP server
-        # ...
-        
-    def accept(self):
-        # Accept a client connection
-        # ...
-        
-    def close(self):
-        # Close the server socket
-        # ...
-        
-    def run(self):
-        # Start the server and listen for connections
-        # ...
-        
-    def handle_client(self, client_socket, client_address):
-        # Handle a client connection
-        # ...
-        
-    def handle_request(self, request_data, client_address):
-        # Process a request (to be overridden by subclasses)
-        # ...</code></pre>
+        <pre><code>from pyserve.http.handlers.templates import TemplateHandler
+from pyserve.template.engine import AsyncTemplateEngine
+
+engine = AsyncTemplateEngine("./templates")
+handler = TemplateHandler(engine)</code></pre>
     </div>
+
+    <h3>Authentication Handler</h3>
+    <div class="code-block">
+        <pre><code>from pyserve.http.handlers.auth.basic import HTTPBasicAuthHandler
+
+auth_handler = HTTPBasicAuthHandler(
+    username="admin",
+    password="secretpass"
+)</code></pre>
+    </div>
+
+    <h3>Proxy Handler</h3>
+    <div class="code-block">
+        <pre><code>from pyserve.http.handlers.proxy import ProxyHandler
+
+handler = ProxyHandler([
+    {
+        "path": "/api",
+        "host": "localhost",
+        "port": 3000
+    }
+])</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Request and Response Objects</h2>
     
     <h3>HTTPRequest</h3>
-    <p>
-        Represents an HTTP request received from a client.
-    </p>
-    
     <div class="code-block">
-        <pre><code>class HTTPRequest:
-    def __init__(self, raw_request):
-        self.method = None
-        self.path = None
-        self.query_params = {}
-        self.headers = {}
-        self.body = b""
-        self.parse_request(raw_request)
-        
-    def parse_request(self, raw_request):
-        # Parse the raw HTTP request
-        # ...</code></pre>
+        <pre><code>from pyserve.http.request import HTTPRequest
+
+# Request properties
+request.method      # HTTP method (GET, POST, etc.)
+request.path        # Request path
+request.headers     # Request headers (dict)
+request.query       # Query parameters (dict)
+request.body        # Request body (bytes)
+request.is_valid()  # Validate request format</code></pre>
     </div>
-    
+
     <h3>HTTPResponse</h3>
-    <p>
-        Represents an HTTP response to be sent to a client.
-    </p>
-    
     <div class="code-block">
-        <pre><code>class HTTPResponse:
-    def __init__(self, status_code=200, headers=None, body=None):
-        self.status_code = status_code
-        self.headers = headers or {}
-        self.body = body or b""
-        # Initialize headers if not provided
-        # ...
-        
-    def to_bytes(self):
-        # Convert the response to bytes for transmission
-        # ...</code></pre>
-    </div>
-</div>
+        <pre><code>from pyserve.http.response import HTTPResponse
 
-<div class="card">
-    <h2>Configuration</h2>
-    
-    <h3>Configuration</h3>
-    <p>
-        Handles loading and parsing of the configuration file.
-    </p>
-    
-    <div class="code-block">
-        <pre><code>class Configuration:
-    def __init__(self, config_path='./config.yaml'):
-        self.config_path = config_path
-        config = self.load_config()
-        self.server_config = config.get('server', {})
-        self.http_config = config.get('http', {})
-        self.logging_config = config.get('logging', {})
-        self.redirections = self.server_config.get('redirect_instructions', [])
-        # ...
-        
-    def create_config(self):
-        # Create a default configuration file
-        # ...
-        
-    def load_config(self):
-        # Load the configuration from a YAML file
-        # ...
-        
-    def get_log_level(self):
-        # Get the configured log level
-        # ...
-        
-    def add_reverse_proxy(self, path, host, port):
-        # Add a reverse proxy configuration
-        # ...
-        
-    def save_config(self):
-        # Save the configuration to a file
-        # ...</code></pre>
-    </div>
-    
-    <h3>TestConfiguration</h3>
-    <p>
-        Provides methods for testing the configuration.
-    </p>
-    
-    <div class="code-block">
-        <pre><code>class TestConfiguration:
-    def __init__(self):
-        self.config = Configuration()
-        
-    def test_load_config(self):
-        # Test loading the configuration file
-        # ...
-        
-    def test_configuration(self):
-        # Test the configuration content
-        # ...
-        
-    def test_static_directories(self):
-        # Test that required directories exist
-        # ...</code></pre>
-    </div>
-</div>
-
-<div class="card">
-    <h2>Templates and Logging</h2>
-    
-    <h3>TemplateEngine</h3>
-    <p>
-        Simple template engine for rendering HTML templates.
-    </p>
-    
-    <div class="code-block">
-        <pre><code>class TemplateEngine:
-    def __init__(self, templates_dir="./pyserve/templates"):
-        self.templates_dir = os.path.abspath(templates_dir)
-        os.makedirs(self.templates_dir, exist_ok=True)
-        
-    def render_string(self, template_string: str, context: Dict[str, Any]) -> str:
-        # Render a template string with the provided context
-        # ...
-        
-    def render_template(self, template_name: str, context: Dict[str, Any]) -> str:
-        # Render a template file with the provided context
-        # ...
-        
-    def render_error(self, status_code: int, status_text: str, error_details: str = "") -> str:
-        # Render an error template
-        # ...</code></pre>
-    </div>
-    
-    <h3>PyServeLogger</h3>
-    <p>
-        Custom logger with colored console output.
-    </p>
-    
-    <div class="code-block">
-        <pre><code>class PyServeLogger:
-    def __init__(self, level=logging.DEBUG, log_file=None):
-        # Initialize the logger
-        # ...
-    
-    def debug(self, message):
-        self.logger.debug(message)
-    
-    def info(self, message):
-        self.logger.info(message)
-    
-    def warning(self, message):
-        self.logger.warning(message)
-    
-    def error(self, message):
-        self.logger.error(message)
-    
-    def critical(self, message):
-        self.logger.critical(message)</code></pre>
-    </div>
-    
-    <h3>get_logger</h3>
-    <p>
-        Helper function to create a logger instance.
-    </p>
-    
-    <div class="code-block">
-        <pre><code>def get_logger(level=logging.DEBUG, log_file=None):
-    return PyServeLogger(level, log_file)</code></pre>
-    </div>
-</div>
-
-<div class="card">
-    <h2>Utility Functions</h2>
-    
-    <h3>get_redirections</h3>
-    <p>
-        Converts the redirection list from the configuration to a dictionary.
-    </p>
-    
-    <div class="code-block">
-        <pre><code>def get_redirections(redirections: list):
-    redirects_dict = {}
-    
-    for redirect_item in redirections:
-        for path, url in redirect_item.items():
-            redirects_dict[path] = url
-    
-    return redirects_dict</code></pre>
-    </div>
-</div>
-
-<div class="card">
-    <h2>Extending PyServe</h2>
-    <p>
-        PyServe can be extended by subclassing its core classes. Here are some common extension points:
-    </p>
-    
-    <h3>Creating a Custom Server</h3>
-    <p>
-        You can create a custom server by subclassing HTTPServer and overriding its methods:
-    </p>
-    
-    <div class="code-block">
-        <pre><code>from pyserve import HTTPServer, HTTPResponse, HTTPRequest
-
-class MyCustomServer(HTTPServer):
-    def __init__(self, host, port, static_dir="./static", template_dir="./templates", 
-                 backlog=5, debug=False, redirections=None):
-        super().__init__(host, port, static_dir, template_dir, backlog, debug, redirections)
-        # Additional initialization
-        
-    def handle_request(self, request_data, client_address):
-        request = HTTPRequest(request_data)
-        
-        # Custom request handling
-        if request.path == '/custom':
-            return HTTPResponse(200, body=b"Custom response")
-            
-        # Fall back to default handling
-        return super().handle_request(request_data, client_address)</code></pre>
-    </div>
-    
-    <h3>Adding Custom Middleware</h3>
-    <p>
-        You can add middleware functionality by intercepting requests in a custom server:
-    </p>
-    
-    <div class="code-block">
-        <pre><code>class MiddlewareServer(HTTPServer):
-    def handle_request(self, request_data, client_address):
-        request = HTTPRequest(request_data)
-        
-        # Log the request timing
-        import time
-        start_time = time.time()
-        
-        # Process the request
-        response = super().handle_request(request_data, client_address)
-        
-        # Log the response timing
-        end_time = time.time()
-        self.logger.info(f"Request to {request.path} took {end_time - start_time:.4f} seconds")
-        
-        return response</code></pre>
-    </div>
-</div>
-
-<div class="card">
-    <h2>Integration Examples</h2>
-    
-    <h3>Using PyServe in a Custom Application</h3>
-    <p>
-        You can use PyServe as part of a larger application:
-    </p>
-    
-    <div class="code-block">
-        <pre><code>import threading
-from pyserve import HTTPServer, Configuration
-
-class MyApplication:
-    def __init__(self):
-        # Load configuration
-        self.config = Configuration('./my_app_config.yaml')
-        
-        # Initialize the server
-        host = self.config.server_config.get('host', '127.0.0.1')
-        port = self.config.server_config.get('port', 8000)
-        
-        self.server = HTTPServer(
-            host, 
-            port,
-            static_dir=self.config.http_config.get('static_dir', './static'),
-            template_dir=self.config.http_config.get('templates_dir', './templates')
-        )
-        
-    def start(self):
-        # Start the server in a separate thread
-        self.server_thread = threading.Thread(target=self.server.run)
-        self.server_thread.daemon = True
-        self.server_thread.start()
-        
-        print(f"Server started on {self.config.server_config.get('host')}:{self.config.server_config.get('port')}")
-        
-        # ... rest of the application
-        
-    def stop(self):
-        self.server.close()
-        print("Server stopped")
-
-
-if __name__ == "__main__":
-    app = MyApplication()
-    app.start()
-    
-    try:
-        # Keep the main thread running
-        import time
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        app.stop()</code></pre>
-    </div>
-</div>
-
-<div class="card">
-    <h2>API Usage Examples</h2>
-    
-    <h3>Basic Server Setup</h3>
-    <div class="code-block">
-        <pre><code>from pyserve import HTTPServer
-
-server = HTTPServer('127.0.0.1', 8000)
-server.run()</code></pre>
-    </div>
-    
-    <h3>Custom Configuration</h3>
-    <div class="code-block">
-        <pre><code>from pyserve import HTTPServer, Configuration
-
-config = Configuration('./my_config.yaml')
-server = HTTPServer(
-    config.server_config.get('host'),
-    config.server_config.get('port'),
-    static_dir=config.http_config.get('static_dir'),
-    template_dir=config.http_config.get('templates_dir'),
-    debug=True
-)
-server.run()</code></pre>
-    </div>
-    
-    <h3>Creating and Sending a Response</h3>
-    <div class="code-block">
-        <pre><code>from pyserve import HTTPResponse
-
-# Simple text response
+# Create responses
 response = HTTPResponse(
     status_code=200,
-    headers={'Content-Type': 'text/plain'},
-    body=b"Hello, World!"
+    headers={},
+    body="Hello World"
 )
 
-# HTML response
-html = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>Example</title>
-</head>
-<body>
-    <h1>Hello, World!</h1>
-</body>
-</html>
-"""
-response = HTTPResponse(
-    status_code=200,
-    headers={'Content-Type': 'text/html'},
-    body=html.encode()
-)
+# Helper methods
+response = HTTPResponse.ok("Success")
+response = HTTPResponse.not_found("Page not found")
+response = HTTPResponse.unauthorized("Access denied")
+response = HTTPResponse.redirect("/new-location")
+response = HTTPResponse.internal_error("Server error")</code></pre>
+    </div>
+</div>
 
-# JSON response
-import json
-data = {'message': 'Hello, World!'}
-response = HTTPResponse(
-    status_code=200,
-    headers={'Content-Type': 'application/json'},
-    body=json.dumps(data).encode()
+<div class="card">
+    <h2>SSL Configuration</h2>
+    <div class="code-block">
+        <pre><code>from pyserve import SSLConfiguration
+
+ssl_config = SSLConfiguration({
+    "enabled": True,
+    "cert_file": "./ssl/cert.pem",
+    "key_file": "./ssl/key.pem"
+})
+
+# Check SSL configuration
+if ssl_config.is_properly_configured():
+    print("SSL is properly configured")</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Testing Utilities</h2>
+    <div class="code-block">
+        <pre><code>from pyserve import TestConfiguration
+
+test_config = TestConfiguration()
+
+# Run specific tests
+test_config.test_load_config()
+test_config.test_configuration()
+test_config.test_static_directories()
+
+# Run all tests
+test_config.run_all_tests()</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Error Handling</h2>
+    <p>PyServe provides a set of custom exceptions for better error handling:</p>
+    
+    <div class="code-block">
+        <pre><code>from pyserve.core.exceptions import (
+            ConfigurationError,
+            PyServeYAMLException
 )</code></pre>
     </div>
-    
-    <h3>Template Rendering</h3>
-    <div class="code-block">
-        <pre><code>from pyserve import TemplateEngine
 
-# Initialize the template engine
-engine = TemplateEngine('./templates')
-
-# Render a template with context
-html = engine.render_template(
-    'example.html',
-    {
-        'title': 'Example Page',
-        'message': 'Hello, World!',
-        'items': ['Item 1', 'Item 2', 'Item 3']
-    }
-)</code></pre>
+    <div class="alert alert-info">
+        <p><strong>Note:</strong> All PyServe exceptions inherit from the base <code>Exception</code> class.</p>
     </div>
 </div>

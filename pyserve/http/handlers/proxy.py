@@ -1,156 +1,167 @@
 """
-Reverse proxy handler for PyServe
+HTTP and WebSocket proxy handler implementation
 """
-import gzip
-import io
-from typing import Optional, List, Dict, Union
-import aiohttp
+from typing import Dict, Any, Optional
 from pyserve.http.request import HTTPRequest
 from pyserve.http.response import HTTPResponse
-from pyserve.core.logging import get_logger
-import pyserve
+from pyserve.http.websocket.base import WebSocket
+from pyserve.http.handlers.websocket_proxy import WebSocketProxyHandler
+from pyserve.core.logging import configured_logger
+import asyncio
+import aiohttp
 
+logger = configured_logger
 
 class ProxyHandler:
-    def __init__(self, proxy_configs: List[Dict[str, Union[str, int]]]):
+    def __init__(self, proxy_configs: list):
         self.proxy_configs = proxy_configs
-        self.client_session: Optional[aiohttp.ClientSession] = None
-        self.logger = get_logger()
+        self.client_session = None
+        self.template_handler = None
         
-    def set_client_session(self, client_session: aiohttp.ClientSession):
-        self.client_session = client_session
+    def set_client_session(self, session):
+        self.client_session = session
         
-    async def handle(self, request: HTTPRequest, proxy_config: Dict[str, Union[str, int]]) -> HTTPResponse:
-        """
-        Handle request through reverse proxy using aiohttp
+    def set_template_handler(self, template_handler):
+        self.template_handler = template_handler
         
-        Args:
-            request: HTTP request from client
-            proxy_config: Proxy server configuration (host, port, path)
+    async def handle(self, request: HTTPRequest, proxy_config: Dict[str, Any]) -> HTTPResponse:
+        """Handle HTTP or WebSocket request"""
+        if WebSocket.is_websocket_request(request.headers):
+            return await self._handle_websocket(request, proxy_config)
             
-        Returns:
-            HTTPResponse: Response from proxy server
-        """
+        return await self._handle_http(request, proxy_config)
+        
+    async def _handle_websocket(self, request: HTTPRequest, proxy_config: Dict[str, Any]) -> HTTPResponse:
+        """Handle WebSocket upgrade request"""
+        ws_handler = WebSocketProxyHandler(proxy_config)
+        
+        client_reader = request.reader
+        client_writer = request.writer
+        
+        if not client_reader or not client_writer:
+            logger.error("No client connection available for WebSocket upgrade")
+            return HTTPResponse(400, body="Bad Request")
+            
+        success = await ws_handler.handle_upgrade(
+            client_reader,
+            client_writer,
+            request.headers,
+            request.path
+        )
+        
+        if not success:
+            return await self._handle_error(502, "Bad Gateway", "WebSocket proxy connection failed")
+            
+        return None
+        
+    async def _handle_http(self, request: HTTPRequest, proxy_config: Dict[str, Any]) -> HTTPResponse:
+        """Handle regular HTTP request"""
+        if not self.client_session:
+            return await self._handle_error(503, "Service Unavailable", "Proxy service is not available")
+            
+        target_host = proxy_config.get('host', 'localhost')
+        target_port = proxy_config.get('port', 80)
+        target_path = proxy_config.get('path', '')
+        use_ssl = proxy_config.get('ssl', False)
+        
+        scheme = 'https' if use_ssl else 'http'
+        
+        relative_path = request.path
+        if target_path and request.path.startswith(target_path):
+            relative_path = request.path[len(target_path):]
+            if not relative_path:
+                relative_path = '/'
+            elif not relative_path.startswith('/'):
+                relative_path = '/' + relative_path
+        
+        target_url = f"{scheme}://{target_host}:{target_port}{relative_path}"
+        
+        if request.query_params:
+            query_parts = []
+            for key, values in request.query_params.items():
+                for value in values:
+                    query_parts.append(f"{key}={value}")
+            if query_parts:
+                target_url += "?" + "&".join(query_parts)
+        
+        backend_headers = {}
+        skip_headers = {'host', 'connection', 'upgrade', 'transfer-encoding', 'content-length'}
+        
+        for name, value in request.headers.items():
+            if name.lower() not in skip_headers:
+                backend_headers[name] = value
+        
+        client_ip = request.headers.get('x-forwarded-for', 'unknown')
+        backend_headers['X-Forwarded-For'] = client_ip
+        backend_headers['X-Forwarded-Host'] = request.headers.get('host', '')
+        backend_headers['X-Forwarded-Proto'] = 'https' if use_ssl else 'http'
+        backend_headers['X-Real-IP'] = client_ip
+        
+        if request.body and len(request.body) > 0:
+            backend_headers['Content-Length'] = str(len(request.body))
+        
         try:
-            target_host = proxy_config['host']
-            target_port = proxy_config['port']
-            base_path = proxy_config['path']
+            logger.info(f"Proxying {request.method} request to {target_url}")
             
-            if request.path.startswith(str(base_path)):
-                target_path = request.path[len(str(base_path)):]
-                if not target_path:
-                    target_path = '/'
-            else:
-                target_path = request.path
-                
-            query_string = ""
-            if request.query_params:
-                query_parts = []
-                for key, values in request.query_params.items():
-                    for value in values:
-                        query_parts.append(f"{key}={value}")
-                if query_parts:
-                    query_string = "?" + "&".join(query_parts)
-                    
-            target_url = f"http://{target_host}:{target_port}{target_path}{query_string}"
-                
-            if self.logger.logger.isEnabledFor(20):  # DEBUG level
-                self.logger.debug(f"Connecting to {target_url}")
-                
-            proxy_headers = self._prepare_proxy_headers(request, target_host, target_port)
-            
-            if self.logger.logger.isEnabledFor(20):  # DEBUG level
-                self.logger.debug(f"Proxy request: {request.method} {target_url}")
-                self.logger.debug(f"Proxy headers: {proxy_headers}")
+            timeout = aiohttp.ClientTimeout(total=30, connect=10)
             
             async with self.client_session.request(
                 method=request.method,
                 url=target_url,
-                headers=proxy_headers,
-                data=request.body,
-                allow_redirects=False
-            ) as resp:
-                body = await resp.read()
+                headers=backend_headers,
+                data=request.body if request.body else None,
+                allow_redirects=False,
+                timeout=timeout,
+                auto_decompress=True
+            ) as response:
+                body = await response.read()
                 
-                body = self._handle_content_encoding(resp.headers, body)
+                response_headers = {}
+                skip_response_headers = {
+                    'connection', 
+                    'transfer-encoding', 
+                    'content-encoding',
+                    'keep-alive',
+                    'upgrade',
+                    'proxy-connection',
+                    'server'
+                }
                 
-                response_headers = self._prepare_response_headers(resp.headers, body)
-                        
-                return HTTPResponse(resp.status, response_headers, body)
+                for name, value in response.headers.items():
+                    if name.lower() not in skip_response_headers:
+                        response_headers[name] = value
                 
+                response_headers['content-length'] = str(len(body))
+                
+                response_headers['Via'] = 'pyserve-proxy'
+                
+                from pyserve import __version__
+                response_headers['server'] = f'PyServe/{__version__}'
+                
+                logger.info(f"Proxy response: {response.status} (size: {len(body)} bytes)")
+                logger.debug(f"Response headers: {response_headers}")
+                
+                return HTTPResponse(
+                    status_code=response.status,
+                    headers=response_headers,
+                    body=body
+                )
+                
+        except aiohttp.ClientError as e:
+            logger.error(f"Proxy client error: {e}")
+            return await self._handle_error(502, "Bad Gateway", f"Could not connect to upstream server: {str(e)}")
+        except asyncio.TimeoutError:
+            logger.error("Proxy request timeout")
+            return await self._handle_error(504, "Gateway Timeout", "Upstream server did not respond in time")
         except Exception as e:
-            self.logger.error(f"Async reverse proxy error: {e}")
-            return HTTPResponse(502, body=f"Bad Gateway: Error proxying to {proxy_config['host']}:{proxy_config['port']}")
-            
-    def _prepare_proxy_headers(self, 
-                              request: HTTPRequest, 
-                              target_host: str, 
-                              target_port: int) -> Dict[str, str]:
-        proxy_headers = {}
-        
-        # Copy headers from original request (excluding hop-by-hop headers)
-        hop_by_hop_headers = {
-            'connection', 'keep-alive', 'proxy-authenticate', 
-            'proxy-authorization', 'te', 'trailers', 
-            'transfer-encoding', 'upgrade'
-        }
-        
-        for name, value in request.headers.items():
-            if name.lower() not in hop_by_hop_headers:
-                proxy_headers[name] = value
-                
-        # Set host header
-        proxy_headers['host'] = f"{target_host}:{target_port}"
-        
-        # Add X-Forwarded headers
-        client_ip = request.get_header('x-forwarded-for', '')
-        if client_ip:
-            proxy_headers['x-forwarded-for'] = client_ip
+            logger.error(f"Proxy error: {e}")
+            import traceback
+            traceback.print_exc()
+            return await self._handle_error(502, "Bad Gateway", "An unexpected error occurred while processing the request")
+    
+    async def _handle_error(self, status_code: int, status_text: str, error_details: str) -> HTTPResponse:
+        if self.template_handler:
+            error_template = await self.template_handler.render_error(status_code, status_text, error_details)
+            return HTTPResponse(status_code, body=error_template)
         else:
-            proxy_headers['x-forwarded-for'] = request.get_header('remote_addr', '')
-            
-        proxy_headers['x-forwarded-host'] = request.get_header('host', '')
-        proxy_headers['x-forwarded-proto'] = 'http'
-        
-        return proxy_headers
-        
-    def _handle_content_encoding(self, headers: Dict[str, str], body: bytes) -> bytes:
-        """Handle content encoding (e.g., gzip decompression)"""
-        content_encoding = headers.get('content-encoding', '').lower()
-        
-        if content_encoding == 'gzip':
-            try:
-                gzip_file = gzip.GzipFile(fileobj=io.BytesIO(body))
-                body = gzip_file.read()
-            except Exception as e:
-                self.logger.error(f"Error decompressing gzip response: {e}")
-                
-        return body
-        
-    def _prepare_response_headers(self, 
-                                 resp_headers: Dict[str, str], 
-                                 body: bytes) -> Dict[str, str]:
-        """Prepare headers for response to client"""
-        response_headers = {}
-        
-        # Copy headers from proxy response (excluding hop-by-hop headers)
-        hop_by_hop_headers = {
-            'connection', 'keep-alive', 'proxy-authenticate', 
-            'proxy-authorization', 'te', 'trailers', 
-            'transfer-encoding'
-        }
-        
-        for header, value in resp_headers.items():
-            if header.lower() not in hop_by_hop_headers:
-                response_headers[header.lower()] = value
-        
-        # Update content-length if we decompressed
-        if 'content-encoding' in response_headers and response_headers['content-encoding'] == 'gzip':
-            response_headers['content-length'] = str(len(body))
-            del response_headers['content-encoding']
-            
-        # Add Via header
-        via_header = f"1.1 PyServe/{pyserve.__version__} (Async Reverse Proxy)"
-        response_headers['via'] = via_header
-        
-        return response_headers
+            return HTTPResponse(status_code, body=f"{status_code} {status_text}: {error_details}")

@@ -2,8 +2,117 @@
 Configuration validator for PyServe
 """
 import os
-from typing import Dict, Any, List, Tuple
+import asyncio
+import aiohttp
+from typing import Dict, Any, List, Tuple, Optional
 
+class ReverseProxyValidator:
+    """Validator for reverse proxy configurations"""
+    
+    @staticmethod
+    async def validate_proxy_availability(proxy_configs: List[Dict[str, Any]], 
+                                          timeout: float = 5.0) -> Tuple[bool, List[str]]:
+        """
+        Validate that all reverse proxy backends are available
+        
+        Args:
+            proxy_configs: List of proxy configurations
+            timeout: Connection timeout in seconds
+            
+        Returns:
+            Tuple[bool, List[str]]: (all_available, list_of_errors)
+        """
+        errors = []
+        all_available = True
+        
+        async with aiohttp.ClientSession() as session:
+            for i, proxy_config in enumerate(proxy_configs):
+                host = proxy_config.get('host', 'localhost')
+                port = proxy_config.get('port', 80)
+                path = proxy_config.get('path', '/')
+                use_ssl = proxy_config.get('ssl', False)
+                
+                error = await ReverseProxyValidator.check_backend(
+                    session, host, port, path, use_ssl, timeout, i
+                )
+                
+                if error:
+                    errors.append(error)
+                    all_available = False
+                    
+        return all_available, errors
+    
+    @staticmethod
+    async def check_backend(session: aiohttp.ClientSession,
+                           host: str,
+                           port: int,
+                           path: str,
+                           use_ssl: bool,
+                           timeout: float,
+                           index: int) -> Optional[str]:
+        """
+        Check if a specific backend is available
+        
+        Args:
+            session: aiohttp session
+            host: Backend host
+            port: Backend port
+            path: Proxy path configuration
+            use_ssl: Whether to use SSL
+            timeout: Connection timeout
+            index: Configuration index
+            
+        Returns:
+            Optional[str]: Error message if backend is not available, None otherwise
+        """
+        scheme = 'https' if use_ssl else 'http'
+        url = f"{scheme}://{host}:{port}/"
+        
+        try:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=timeout)) as response:
+                return None
+                
+        except aiohttp.ClientConnectorError as e:
+            return f"reverse_proxy[{index}] ({path} -> {host}:{port}): Connection failed - {str(e)}"
+            
+        except asyncio.TimeoutError:
+            return f"reverse_proxy[{index}] ({path} -> {host}:{port}): Connection timeout after {timeout}s"
+            
+        except Exception as e:
+            return f"reverse_proxy[{index}] ({path} -> {host}:{port}): Unexpected error - {str(e)}"
+
+    @staticmethod
+    def validate_proxy_config(proxy_configs: List[Dict[str, Any]]) -> List[str]:
+        """
+        Validate proxy configuration structure (synchronous)
+        
+        Args:
+            proxy_configs: List of proxy configurations
+            
+        Returns:
+            List[str]: List of configuration errors
+        """
+        errors = []
+        
+        if not isinstance(proxy_configs, list):
+            errors.append("reverse_proxy must be a list")
+            return errors
+            
+        for i, proxy in enumerate(proxy_configs):
+            if not isinstance(proxy, dict):
+                errors.append(f"reverse_proxy[{i}] must be a dictionary")
+                continue
+                
+            if 'path' not in proxy:
+                errors.append(f"reverse_proxy[{i}] missing required field: path")
+            if 'host' not in proxy:
+                errors.append(f"reverse_proxy[{i}] missing required field: host")
+            if 'port' not in proxy:
+                errors.append(f"reverse_proxy[{i}] missing required field: port")
+            elif not isinstance(proxy['port'], int) or proxy['port'] < 1 or proxy['port'] > 65535:
+                errors.append(f"reverse_proxy[{i}] invalid port: {proxy['port']}")
+                
+        return errors
 
 class ConfigValidator:
     @staticmethod
@@ -73,21 +182,8 @@ class ConfigValidator:
                     errors.append(f"redirect_instructions[{i}] must have exactly one key-value pair")
         
         reverse_proxy = config.get('reverse_proxy', [])
-        if not isinstance(reverse_proxy, list):
-            errors.append("reverse_proxy must be a list")
-        else:
-            for i, proxy in enumerate(reverse_proxy):
-                if not isinstance(proxy, dict):
-                    errors.append(f"reverse_proxy[{i}] must be a dictionary")
-                else:
-                    if 'path' not in proxy:
-                        errors.append(f"reverse_proxy[{i}] missing required field: path")
-                    if 'host' not in proxy:
-                        errors.append(f"reverse_proxy[{i}] missing required field: host")
-                    if 'port' not in proxy:
-                        errors.append(f"reverse_proxy[{i}] missing required field: port")
-                    elif not isinstance(proxy['port'], int) or proxy['port'] < 1 or proxy['port'] > 65535:
-                        errors.append(f"reverse_proxy[{i}] invalid port: {proxy['port']}")
+        proxy_errors = ReverseProxyValidator.validate_proxy_config(reverse_proxy)
+        errors.extend(proxy_errors)
         
         return errors
     

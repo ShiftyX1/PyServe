@@ -1,16 +1,17 @@
 """
-Configuration loader for PyServe
+Configuration loader for PyServe with enhanced error reporting
 """
 import os
 import yaml
+import sys
 from typing import Dict, Any
-
+from pyserve.core.exceptions import PyServeYAMLException
 
 class ConfigLoader:
     @staticmethod
     def load_yaml(config_path: str) -> Dict[str, Any]:
         """
-        Load configuration from YAML file
+        Load configuration from YAML file with enhanced error reporting
         
         Args:
             config_path: Path to YAML configuration file
@@ -24,9 +25,110 @@ class ConfigLoader:
         except FileNotFoundError:
             return {}
         except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML configuration: {e}")
+            try:
+                with open(config_path, 'r') as f:
+                    file_content = f.readlines()
+            except:
+                file_content = []
+            
+            error_message = ConfigLoader._format_yaml_error(e, file_content, config_path)
+            
+            ConfigLoader._print_colored_error(error_message)
+            
+            # Exit with error code 1
+            # We don't want to raise an exception because we want to exit the program with graceful error handling
+            sys.exit(1)
         except Exception as e:
             raise RuntimeError(f"Error loading configuration: {e}")
+    
+    @staticmethod
+    def _format_yaml_error(error: yaml.YAMLError, file_content: list, file_path: str) -> str:
+        """
+        Format YAML error message with file context
+        
+        Args:
+            error: YAML error object
+            file_content: List of file lines
+            file_path: Path to the configuration file
+            
+        Returns:
+            str: Formatted error message
+        """
+        error_msg = f"Cannot start server or even test the configuration file.\nInvalid YAML configuration in '{file_path}':\n"
+        
+        error_str = str(error)
+        
+        line_number = None
+        if hasattr(error, 'context_mark') and error.context_mark:
+            line_number = error.context_mark.line + 1
+        elif hasattr(error, 'problem_mark') and error.problem_mark:
+            line_number = error.problem_mark.line + 1
+        else:
+            import re
+            match = re.search(r'line (\d+)', error_str)
+            if match:
+                line_number = int(match.group(1))
+        
+        if line_number and file_content:
+            error_msg += f"\nError on line {line_number}:\n"
+            error_msg += "─" * 50 + "\n"
+            
+            start_line = max(0, line_number - 3)
+            end_line = min(len(file_content), line_number + 2)
+            
+            for i in range(start_line, end_line):
+                line_num = i + 1
+                line = file_content[i].rstrip('\n')
+                
+                if line_num == line_number:
+                    error_msg += f"❌ {line_num:4d} | {line}\n"
+                    
+                    if hasattr(error, 'problem_mark') and error.problem_mark:
+                        col = error.problem_mark.column
+                        error_msg += "      " + " " * col + "^" + " ← error here\n"
+                else:
+                    error_msg += f"   {line_num:4d} | {line}\n"
+            
+            error_msg += "─" * 50 + "\n"
+        
+        error_msg += f"\nError details: {error_str}\nMore information: https://github.com/ShiftyX1/PyServe/issues"
+        
+        return error_msg
+    
+    @staticmethod
+    def _print_colored_error(error_msg: str) -> None:
+        """
+        Print error message with colors if terminal supports it
+        
+        Args:
+            error_msg: Error message to print
+        """
+        if sys.stdout.isatty() and os.name != 'nt':
+            RED = '\033[91m'
+            YELLOW = '\033[93m'
+            RESET = '\033[0m'
+            BOLD = '\033[1m'
+            
+            lines = error_msg.split('\n')
+            colored_lines = []
+            
+            for line in lines:
+                if line.startswith('❌'):
+                    colored_lines.append(f"{RED}{BOLD}{line}{RESET}")
+                elif line.startswith('Cannot start server or even test the configuration file.'):
+                    colored_lines.append(f"{RED}{BOLD}{line}{RESET}")
+                elif line.startswith('Invalid YAML'):
+                    colored_lines.append(f"{RED}{BOLD}{line}{RESET}")
+                elif 'Error on line' in line:
+                    colored_lines.append(f"{YELLOW}{line}{RESET}")
+                elif '←' in line:
+                    colored_lines.append(f"{RED}{line}{RESET}")
+                else:
+                    colored_lines.append(line)
+            
+            print('\n'.join(colored_lines), file=sys.stderr)
+        else:
+            print(error_msg, file=sys.stderr)
     
     @staticmethod
     def save_yaml(config: Dict[str, Any], config_path: str) -> bool:
@@ -126,7 +228,6 @@ class ConfigLoader:
             if env_var in os.environ:
                 value = os.environ[env_var]
                 
-                # Type conversion
                 if key == "port":
                     value = int(value)
                 elif key == "enabled":

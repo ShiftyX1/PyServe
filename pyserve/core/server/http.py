@@ -3,7 +3,7 @@ HTTP server implementation for PyServe
 """
 import ssl
 import os
-from typing import Optional, Union, List, Dict, Any
+from typing import Optional, Union, List, Dict, Any, Tuple
 import aiohttp
 
 from pyserve.core.server.tcp import AsyncTCPServer
@@ -16,7 +16,7 @@ from pyserve.http.handlers.proxy import ProxyHandler
 from pyserve.http.handlers.auth.base import HTTPAuthBase
 from pyserve.template.engine import AsyncTemplateEngine
 from pyserve.utils.helpers import get_redirections
-
+from pyserve.core.config.validator import ReverseProxyValidator
 
 class AsyncHTTPServer(AsyncTCPServer):
     """HTTP server implementation"""
@@ -32,9 +32,9 @@ class AsyncHTTPServer(AsyncTCPServer):
                  reverse_proxy: Optional[List[Dict[str, Union[str, int]]]] = None,
                  locations: Optional[Dict[str, Any]] = None,
                  ssl_cert: Optional[str] = None,
-                 ssl_key: Optional[str] = None):
+                 ssl_key: Optional[str] = None,
+                 do_check_proxy_availability: bool = True):
         
-        # Initialize SSL context if certificates are provided
         ssl_context = None
         if ssl_cert and ssl_key:
             ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
@@ -55,7 +55,8 @@ class AsyncHTTPServer(AsyncTCPServer):
         self.reverse_proxy = reverse_proxy or []
         self.client_session: Optional[aiohttp.ClientSession] = None
         self.ssl_enabled = ssl_context is not None
-        
+        self.do_check_proxy_availability = do_check_proxy_availability
+
         # Ensure directories exist
         os.makedirs(self.static_dir, exist_ok=True)
         
@@ -64,11 +65,29 @@ class AsyncHTTPServer(AsyncTCPServer):
         self.redirect_handler = RedirectHandler(self.redirections)
         self.template_handler = TemplateHandler(self.template_engine)
         self.proxy_handler = ProxyHandler(self.reverse_proxy)
+        self.proxy_handler.set_template_handler(self.template_handler)
         self.auth_handler = HTTPAuthBase  
         
     async def start(self) -> None:
         """Start the HTTP server"""
-        # Initialize aiohttp client session for proxy
+        # Check reverse proxy availability if configured
+        if self.reverse_proxy and self.check_proxy_availability and self.do_check_proxy_availability:
+            self.logger.info("Checking reverse proxy backend availability...")
+            all_available, errors = await ReverseProxyValidator.validate_proxy_availability(
+                self.reverse_proxy, timeout=10.0
+            )
+            
+            if not all_available:
+                self.logger.warning("Some reverse proxy backends are not available:")
+                for error in errors:
+                    self.logger.warning(f"  - {error}")
+                
+                # TODO: Optionally, we could decide to not start the server if backends are unavailable
+                # BUT I HATE THIS IDEA IN NGINX, BECAUSE IT'S NOT USER FRIENDLY!!!
+                # That's why for now, we'll just warn and continue
+                # if not all_available:
+                #     raise RuntimeError("Some reverse proxy backends are not available")
+        
         self.client_session = aiohttp.ClientSession()
         self.proxy_handler.set_client_session(self.client_session)
         
@@ -188,3 +207,33 @@ class AsyncHTTPServer(AsyncTCPServer):
         """Handle error response with template"""
         error_template = await self.template_handler.render_error(status_code, status_text, error_details)
         return HTTPResponse(status_code, body=error_template)
+    
+    async def check_proxy_availability(self, timeout: float = 10.0) -> Tuple[bool, List[str]]:
+        """
+        Check availability of all configured reverse proxy backends
+
+        Args:
+            timeout: Timeout in seconds for each backend check
+
+        Returns:
+            Tuple[bool, List[str]]: (all_available, list_of_errors)
+        """
+        if not self.reverse_proxy:
+            self.logger.debug("No reverse proxy configured")
+            return True, []
+
+        self.logger.info("Checking reverse proxy backend availability...")
+
+        all_available, errors = await ReverseProxyValidator.validate_proxy_availability(
+            self.reverse_proxy,
+            timeout=timeout
+        )
+
+        if all_available:
+            self.logger.info("✅ All reverse proxy backends are available")
+        else:
+            self.logger.warning("⚠️ Some reverse proxy backends are not available:")
+            for error in errors:
+                self.logger.warning(f"  - {error}")
+
+        return all_available, errors
