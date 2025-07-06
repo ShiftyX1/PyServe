@@ -10,7 +10,7 @@ services:
       - ./config.docker.yaml:/app/config.docker.yaml:ro
       - ./static:/app/static
       - ./templates:/app/templates
-      - ./logs:/app/logs
+      - pyserve-logs:/app/logs
       - ./ssl:/app/ssl:ro
     environment:
       - PYTHONPATH=/app
