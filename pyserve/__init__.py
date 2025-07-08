@@ -9,7 +9,7 @@ from .template.engine import AsyncTemplateEngine
 from .configuration import Configuration, SSLConfiguration
 from .testing.config_tests import TestConfiguration
 
-__version__ = 'pre-0.4-async'
+__version__ = '0.4.1'
 
 __all__ = [
     'AsyncTCPServer',
