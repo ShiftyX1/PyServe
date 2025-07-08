@@ -10,6 +10,8 @@ import argparse
 import asyncio
 from pyserve import AsyncHTTPServer, Configuration, get_logger, TestConfiguration
 from pyserve import __version__
+from pyserve.vibe.vibe_config import VibeConfig
+from pyserve.vibe.service import VibeService
 
 
 def parse_arguments():
@@ -52,6 +54,8 @@ Examples:
                         help='Run tests')
     parser.add_argument('--skip-proxy-check', action='store_true',
                         help='Skip reverse proxy availability check at startup')
+    parser.add_argument('--vibe-serving', action='store_true',
+                       help='Enable Vibe-Serving mode (AI-generated content)')
     
     ssl_group = parser.add_argument_group('SSL Options')
     ssl_group.add_argument('--ssl', action='store_true',
@@ -126,6 +130,64 @@ async def run_server():
         print(f"\nReady to serve!")
         sys.exit(0)
     
+    if getattr(args, 'vibe_serving', False):
+        vibe_config = VibeConfig()
+        vibe_config.load_config('vibeconfig.yaml')
+        config = Configuration()
+        
+        log_level = config.get_log_level()
+        logger_config = config.logging_config
+        logger = get_logger(
+            level=log_level,
+            log_file=logger_config.get('log_file'),
+            console_output=logger_config.get('console_output', True),
+            use_colors=logger_config.get('use_colors', True),
+            use_rotation=logger_config.get('use_rotation', False),
+            max_log_size=logger_config.get('max_log_size', 10485760),
+            backup_count=logger_config.get('backup_count', 5),
+            structured_logs=logger_config.get('structured_logs', False)
+        )
+        
+        host = args.host or config.server_config.get('host', '127.0.0.1')
+        port = args.port or config.server_config.get('port', 8000)
+        
+        server = AsyncHTTPServer(
+            host=host,
+            port=port,
+            static_dir=config.http_config.get('static_dir', './static'),
+            template_dir=config.http_config.get('templates_dir', './templates'),
+            backlog=config.server_config.get('backlog', 5),
+            debug=args.debug or config.get_log_level() <= 10,
+            redirections=config.redirections,
+            locations=config.locations,
+            reverse_proxy=config.server_config.get('reverse_proxy', []),
+            ssl_cert=None,
+            ssl_key=None,
+            do_check_proxy_availability=not args.skip_proxy_check
+        )
+        from dotenv import load_dotenv
+        load_dotenv('.env.example')
+        vibe_service = VibeService(server, config, vibe_config)
+        
+        logger.info(f"PyVibeServe v{__version__} (AI-Generated Content) starting")
+        if args.debug:
+            logger.debug(f"Vibe configuration loaded from vibeconfig.yaml")
+            logger.debug(f"Routes configured: {list(vibe_config.routes.keys())}")
+        
+        logger.info(f"Vibe-Serving running at http://{host}:{port}/")
+        logger.info(f"AI Model: {vibe_config.settings.get('model', 'gpt-3.5-turbo')}")
+        logger.info(f"Cache TTL: {vibe_config.settings.get('cache_ttl', 3600)} seconds")
+        
+        try:
+            runner = await vibe_service.run()
+            while True:
+                await asyncio.sleep(3600)
+        except KeyboardInterrupt:
+            logger.info("Shutting down PyVibeServe...")
+            if 'runner' in locals():
+                await runner.cleanup()
+        return
+
     config = Configuration(args.config)
     
     log_level = config.get_log_level()

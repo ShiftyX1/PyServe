@@ -24,3 +24,9 @@ ssl/
 collected_files_*.zip
 collect_files.py
 collected_files_*/
+
+
+.env
+.env.example
+
+cache/
