@@ -1,0 +1,119 @@
+<div class="header-banner">
+    <h1>Deployment</h1>
+    <p>Learn how to deploy server</p>
+</div>
+
+<div class="card">
+    <h2>Deployment options overview</h2>
+    <p>
+        PyServe supports multiple deployment options, including:
+        <ul>
+            <li><a href="https://www.docker.com/" target="_blank"><strong>Docker</strong></a> - Docker is a containerization platform that allows you to package your application and its dependencies into a container. This makes it easy to deploy your application on any server that supports Docker.</li>
+            <li><a href="https://www.python.org/" target="_blank"><strong>Python application</strong></a> - You can run your application directly on the server without using Docker. This is the simplest way to deploy your application, but it requires you to manage the server yourself.</li>
+        </ul>
+    </p>
+    
+    <div class="alert alert-info">
+        <p><strong>Note:</strong> More deployment options will be added in the future.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Docker deployment</h2>
+    <p>
+        To deploy your application using Docker, you need to build a Docker image and run it.<br>
+        It's simple and easy to do.
+    </p>
+    
+    <h3>1. Fill .env file</h3>
+    <div class="code-block">
+        <pre><code>
+# HTTP port (must equal with port in config.yaml)
+HTTP_PORT=8000
+
+# HTTPS port (for SSL/TLS)
+HTTPS_PORT=8443
+
+# Additional variables for container
+PYSERVE_DEBUG=false
+            </code></pre>
+    </div>
+
+    <h3>2. Fill config.yaml file</h3>
+    <div class="code-block">
+        <pre><code>
+server:
+  locations:
+    /admin:  # Route to protect
+      auth:
+        type: basic
+        username: admin
+        password: secretpass
+    /api:    # Another protected route
+      auth:
+        type: basic
+        username: apiuser
+        password: apipass
+        </code></pre>
+    </div>
+
+    <div class="alert alert-info">
+        <p>
+            <strong>Note:</strong> You can see more about configuration in <b>Configuration</b> section of this documentation.
+        </p>
+    </div>
+
+    <h3>3. Build Docker image</h3>
+    <div class="code-block">
+        <pre><code>docker build -t pyserve .</code></pre>
+    </div>
+    
+    <h3>4. Run Docker container</h3>
+    <div class="code-block">
+        <pre><code>docker run -d --name pyserve -p 8000:8000 -p 8443:8443 pyserve</code></pre>
+    </div>
+
+    <div class="alert alert-info">
+        <p>
+            <strong>Note:</strong> You can also use pre-made <code>docker-compose.yml</code> file to run your application.
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Python application deployment</h2>
+    <p>
+        To deploy your application using Python, you need to run it directly on the server.<br>
+        It's the simplest way to deploy your application, but it requires you to manage the server yourself.
+    </p>
+
+    <h3>1. Install Python</h3>
+    <div class="code-block">
+        <pre><code>sudo apt-get update
+sudo apt-get install python3</code></pre>
+    </div>
+
+    <h3>2. Clone repository</h3>
+    <div class="code-block">
+        <pre><code>git clone https://github.com/ShiftyX1/PyServe.git</code></pre>
+    </div>
+    
+    <h3>3. Install dependencies</h3>
+    <div class="code-block">
+        <pre><code>cd PyServe
+pip install -r requirements.txt</code></pre>
+    </div>
+    
+    <h3>4. Make sure you have <code>config.yaml</code> file</h3>
+
+    <h3>5. Run application</h3>
+    <p>
+        You can run application in two ways:
+    </p>
+    <div class="code-block">
+        <pre><code>chmod +x run.py
+./run.py</code></pre>
+        <p>or</p>
+        <pre><code>python3 run.py</code></pre>
+    </div>
+</div>
