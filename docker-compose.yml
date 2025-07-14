@@ -12,7 +12,7 @@ services:
       - ./static:/app/static
       - ./templates:/app/templates
       - pyserve-logs:/app/logs
-      - ./ssl:/app/ssl:ro
+      - ./ssl:/app/ssl
     environment:
       - PYTHONPATH=/app
       - PYSERVE_PORT=${HTTP_PORT:-8000}
