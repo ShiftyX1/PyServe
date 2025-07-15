@@ -129,6 +129,12 @@ class ProxyHandler:
                 
                 for name, value in response.headers.items():
                     if name.lower() not in skip_response_headers:
+                        original_value = value
+                        # Handle headers that might contain absolute URLs pointing to backend
+                        if name.lower() in ['location', 'content-location', 'uri']:
+                            value = self._rewrite_location_header(value, target_host, target_port, target_path, scheme, request)
+                            if value != original_value:
+                                logger.debug(f"Rewrote {name} header: '{original_value}' -> '{value}'")
                         response_headers[name] = value
                 
                 response_headers['content-length'] = str(len(body))
@@ -159,6 +165,49 @@ class ProxyHandler:
             traceback.print_exc()
             return await self._handle_error(502, "Bad Gateway", "An unexpected error occurred while processing the request")
     
+    def _rewrite_location_header(self, location: str, target_host: str, target_port: int, 
+                                target_path: str, scheme: str, request: HTTPRequest) -> str:
+        """
+        Rewrite Location header to prevent domain/protocol substitution.
+        Converts absolute URLs from backend to relative URLs for the client.
+        """
+        if not location:
+            return location
+            
+        # If it's already a relative URL, keep it as is
+        if location.startswith('/'):
+            # If we have a target_path configured, we need to add it back
+            if target_path and target_path != '/':
+                return target_path.rstrip('/') + location
+            return location
+            
+        # Check if this is an absolute URL pointing to our backend
+        # Handle both explicit port and default ports (80 for http, 443 for https)
+        backend_base_url = f"{scheme}://{target_host}:{target_port}"
+        backend_base_url_default_port = f"{scheme}://{target_host}"
+        
+        # Check for explicit port first
+        if location.startswith(backend_base_url):
+            relative_path = location[len(backend_base_url):]
+        # Check for default port (when port is omitted in URL)
+        elif ((scheme == 'http' and target_port == 80) or (scheme == 'https' and target_port == 443)) and location.startswith(backend_base_url_default_port):
+            relative_path = location[len(backend_base_url_default_port):]
+        else:
+            # For external URLs (not pointing to our backend), keep them as-is
+            return location
+            
+        # Ensure the path starts with /
+        if not relative_path:
+            relative_path = '/'
+        elif not relative_path.startswith('/'):
+            relative_path = '/' + relative_path
+            
+        # If we have a target_path configured, add it back to make the URL accessible through proxy
+        if target_path and target_path != '/':
+            return target_path.rstrip('/') + relative_path
+        
+        return relative_path
+
     async def _handle_error(self, status_code: int, status_text: str, error_details: str) -> HTTPResponse:
         if self.template_handler:
             error_template = await self.template_handler.render_error(status_code, status_text, error_details)
