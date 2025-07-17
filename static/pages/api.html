@@ -1,12 +1,12 @@
 <div class="header-banner">
     <h1>API Reference</h1>
-    <p>Complete API documentation of PyServe v0.4.1 for developers</p>
+    <p>Complete API documentation of PyServe v0.4.2 for developers</p>
 </div>
 
 <div class="card">
     <h2>Core Components</h2>
     <p>
-        PyServe v0.4.1 is built with a modular architecture, providing several core components that can be used independently or together.
+        PyServe v0.4.2 is built with a modular architecture, providing several core components that can be used independently or together.
     </p>
 
     <h3>AsyncHTTPServer</h3>
@@ -24,7 +24,8 @@ server = AsyncHTTPServer(
     reverse_proxy=[],
     locations={},
     ssl_cert=None,
-    ssl_key=None
+    ssl_key=None,
+    do_check_proxy_availability=True
 )</code></pre>
     </div>
 
@@ -42,12 +43,76 @@ server = AsyncHTTPServer(
                 <td><code>host</code></td>
                 <td>str</td>
                 <td>Host address to bind to</td>
-                <td>127.0.0.1</td>
+                <td>Required</td>
             </tr>
             <tr>
                 <td><code>port</code></td>
                 <td>int</td>
                 <td>Port number to listen on</td>
+                <td>Required</td>
+            </tr>
+            <tr>
+                <td><code>static_dir</code></td>
+                <td>str</td>
+                <td>Directory for static files</td>
+                <td>"./static"</td>
+            </tr>
+            <tr>
+                <td><code>template_dir</code></td>
+                <td>str</td>
+                <td>Directory for template files</td>
+                <td>"./templates"</td>
+            </tr>
+            <tr>
+                <td><code>backlog</code></td>
+                <td>int</td>
+                <td>Maximum connection queue size</td>
+                <td>5</td>
+            </tr>
+            <tr>
+                <td><code>debug</code></td>
+                <td>bool</td>
+                <td>Enable debug mode</td>
+                <td>False</td>
+            </tr>
+            <tr>
+                <td><code>redirections</code></td>
+                <td>List[Dict[str, str]]</td>
+                <td>URL redirection rules</td>
+                <td>None</td>
+            </tr>
+            <tr>
+                <td><code>reverse_proxy</code></td>
+                <td>List[Dict[str, Union[str, int]]]</td>
+                <td>Reverse proxy configuration</td>
+                <td>None</td>
+            </tr>
+            <tr>
+                <td><code>locations</code></td>
+                <td>Dict[str, Any]</td>
+                <td>Location-specific settings (auth, etc.)</td>
+                <td>None</td>
+            </tr>
+            <tr>
+                <td><code>ssl_cert</code></td>
+                <td>Optional[str]</td>
+                <td>Path to SSL certificate file</td>
+                <td>None</td>
+            </tr>
+            <tr>
+                <td><code>ssl_key</code></td>
+                <td>Optional[str]</td>
+                <td>Path to SSL private key file</td>
+                <td>None</td>
+            </tr>
+            <tr>
+                <td><code>do_check_proxy_availability</code></td>
+                <td>bool</td>
+                <td>Check proxy backends at startup</td>
+                <td>True</td>
+            </tr>
+        </tbody>
+    </table>
                 <td>8000</td>
             </tr>
             <tr>
@@ -344,5 +409,76 @@ test_config.run_all_tests()</code></pre>
 
     <div class="alert alert-info">
         <p><strong>Note:</strong> All PyServe exceptions inherit from the base <code>Exception</code> class.</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Vibe-Serving Components</h2>
+    <p>New in v0.4.2: AI-powered content generation components for dynamic web pages.</p>
+
+    <h3>VibeService</h3>
+    <div class="code-block">
+        <pre><code>from pyserve.vibe.service import VibeService
+from pyserve.vibe.vibe_config import VibeConfig
+from pyserve import Configuration, AsyncHTTPServer
+
+# Initialize components
+config = Configuration()
+vibe_config = VibeConfig()
+vibe_config.load_config('vibeconfig.yaml')
+server = AsyncHTTPServer(...)
+
+# Create and run Vibe service
+vibe_service = VibeService(server, config, vibe_config)
+runner = await vibe_service.run()</code></pre>
+    </div>
+
+    <h3>VibeLLMClient</h3>
+    <div class="code-block">
+        <pre><code>from pyserve.vibe.llm import VibeLLMClient
+
+# Initialize with default OpenAI
+client = VibeLLMClient(model="gpt-4")
+
+# Initialize with custom API
+client = VibeLLMClient(
+    api_url="https://api.custom-llm.com/v1",
+    api_key="your-key",
+    model="custom-model"
+)
+
+# Generate content
+html_content = await client.generate(
+    prompt="Create a beautiful landing page",
+    timeout=30
+)</code></pre>
+    </div>
+
+    <h3>VibeCache</h3>
+    <div class="code-block">
+        <pre><code>from pyserve.vibe.cache import VibeCache
+
+cache = VibeCache(base_dir="./cache")
+
+# Check cache
+content = cache.get("/about", ttl=3600)
+
+# Set cache
+cache.set("/about", html_content)</code></pre>
+    </div>
+
+    <h3>VibeConfig</h3>
+    <div class="code-block">
+        <pre><code>from pyserve.vibe.vibe_config import VibeConfig
+
+config = VibeConfig()
+config.load_config('vibeconfig.yaml')
+
+# Get prompt for a route
+prompt = config.get_prompt("/about")
+
+# Get settings
+timeout = config.get_timeout()
+api_url = config.get_api_url()</code></pre>
     </div>
 </div>

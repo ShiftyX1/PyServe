@@ -88,16 +88,16 @@
 </head>
 <body>
     <header>
-        <h1>PyServe</h1>
-        <p>Lightweight and Fast HTTP Server in Python</p>
+        <h1>PyServe v0.4.2</h1>
+        <p>Modern Async HTTP Server with AI-Powered Content Generation</p>
     </header>
 
     <div class="container">
         <div class="card">
             <h2>About the Project</h2>
             <p>
-                PyServe is a lightweight HTTP server written in Python. It is designed for quick deployment of web applications
-                and serving static files with minimal configuration.
+                PyServe is a modern async HTTP server written in Python with unique features like AI-powered content generation.
+                Perfect for rapid prototyping, development, and experimentation with dynamic web content.
             </p>
             <div class="github-link">
                 <a href="https://github.com/ShiftyX1/PyServe" target="_blank">
@@ -127,6 +127,11 @@
                     <h3>Logging</h3>
                     <p>Built-in beautiful logging of all requests</p>
                 </div>
+                <div class="feature">
+                    <div class="icon">🤖</div>
+                    <h3>Vibe-Serving</h3>
+                    <p>AI-generated content on-the-fly using language models</p>
+                </div>
             </div>
         </div>
 
@@ -134,6 +139,9 @@
             <h2>Getting Started</h2>
             <p>Start the server using the command:</p>
             <pre><code>python run.py</code></pre>
+            <p>For AI-generated content, try Vibe-Serving mode:</p>
+            <pre><code>python run.py --vibe-serving</code></pre>
+            <p>Configure your routes in <code>vibeconfig.yaml</code> and set your <code>OPENAI_API_KEY</code>!</p>
             <p>For configuration, use the <code>config.yaml</code> file</p>
             <p>And don't forget about <a href="/docs">documentation</a>!</p>
         </div>

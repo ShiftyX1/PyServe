@@ -1,13 +1,16 @@
 """
-Configuration management for PyServe with enhanced error handling
+Configuration management for PyServe with enhanced error handling and extensions support
 """
 import os
 import logging
 import sys
 from typing import Dict, Any, List, Optional, Union, Tuple
+from pathlib import Path
+import yaml
 from pyserve.core.config.loader import ConfigLoader
 from pyserve.core.config.validator import ConfigValidator
 from pyserve.core.exceptions import PyServeYAMLException
+from pyserve.core.extensions import BaseExtension, ExtensionRegistry
 
 class SSLConfiguration:
     def __init__(self, config_dict: Optional[Dict[str, Any]] = None):
@@ -43,7 +46,8 @@ class Configuration:
     def __init__(self, config_path: str = './config.yaml'):
         self.config_path = config_path
         self._config = self._load_configuration()
-        
+
+        # Necessary modules (always the same for V1 and V2)
         self.server_config = self._config.get('server', {})
         self.http_config = self._config.get('http', {})
         self.logging_config = self._config.get('logging', {})
@@ -53,6 +57,10 @@ class Configuration:
         
         if 'reverse_proxy' not in self.server_config:
             self.server_config['reverse_proxy'] = []
+
+        # Extensions (only for V2)
+        self.extensions: Dict[str, BaseExtension] = {}
+        self._load_extensions()
     
     def _load_configuration(self) -> Dict[str, Any]:
         try:
@@ -70,6 +78,93 @@ class Configuration:
         except Exception as e:
             self._print_error(f"Error loading configuration", e)
             sys.exit(1)
+    
+    def _load_extensions(self) -> None:
+        """
+        Load extensions (only for V2).
+        Gracefully handles errors without disrupting core functionality.
+        """
+        # Check configuration version
+        if self._config.get('version') != 2:
+            return
+        
+        extensions_config = self._config.get('extensions', [])
+        if not extensions_config:
+            return
+        
+        for ext_config in extensions_config:
+            try:
+                ext_type = ext_config.get('type')
+                if not ext_type:
+                    print(f"Warning: Extension without 'type' field found, skipping")
+                    continue
+
+                # Load extension configuration
+                if 'source' in ext_config:
+                    # External file
+                    ext_data = self._load_external_extension(ext_config['source'])
+                else:
+                    # Inline configuration
+                    ext_data = ext_config.get('config', {})
+
+                # Create extension instance
+                if ExtensionRegistry.is_registered(ext_type):
+                    extension = ExtensionRegistry.create(ext_type, ext_data)
+                    self.extensions[ext_type] = extension
+                else:
+                    print(f"Warning: Unknown extension type '{ext_type}', skipping")
+                    
+            except Exception as e:
+                # Graceful degradation - warning, but not shutting down
+                # This allows the server to continue running even if an extension fails to load
+                # and provides feedback to the user.
+                # TODO: actually I think we should add shutting down option. Maybe user wants to stop server if extension fails?
+                print(f"Warning: Failed to load extension {ext_config.get('type', 'unknown')}: {e}")
+    
+    def _load_external_extension(self, source_path: str) -> Dict[str, Any]:
+        """
+        Load extension from external file.
+
+        Args:
+            source_path: Path to the extension file
+
+        Returns:
+            Extension configuration
+
+        Raises:
+            RuntimeError: If failed to load file
+        """
+        # Resolve relative paths
+        if not os.path.isabs(source_path):
+            config_dir = Path(self.config_path).parent
+            source_path = config_dir / source_path
+        
+        try:
+            with open(source_path, 'r', encoding='utf-8') as f:
+                ext_data = yaml.safe_load(f)
+
+            # Validate external module structure
+            if not isinstance(ext_data, dict):
+                raise ValueError("External extension must be a YAML object")
+            
+            if 'type' not in ext_data:
+                raise ValueError("External extension must have 'type' field")
+                
+            return ext_data.get('config', {})
+            
+        except Exception as e:
+            raise RuntimeError(f"Failed to load extension from {source_path}: {e}")
+    
+    def has_extension(self, ext_type: str) -> bool:
+        """Check if extension is loaded."""
+        return ext_type in self.extensions
+    
+    def get_extension(self, ext_type: str) -> Optional[BaseExtension]:
+        """Get extension INSTANCE."""
+        return self.extensions.get(ext_type)
+    
+    def get_config_version(self) -> int:
+        return self._config.get('version', 1)
     
     def _print_error(self, message: str, error: Exception) -> None:
         """
@@ -171,7 +266,8 @@ class Configuration:
     def reload(self) -> None:
         try:
             self._config = self._load_configuration()
-            
+
+            # Reload necessary modules
             self.server_config = self._config.get('server', {})
             self.http_config = self._config.get('http', {})
             self.logging_config = self._config.get('logging', {})
@@ -180,6 +276,11 @@ class Configuration:
             
             if 'reverse_proxy' not in self.server_config:
                 self.server_config['reverse_proxy'] = []
+
+            # Reload extensions
+            self.extensions.clear()
+            self._load_extensions()
+            
         except PyServeYAMLException:
             raise
         except Exception as e:
