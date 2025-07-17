@@ -1,0 +1,196 @@
+<div class="header-banner">
+    <h1>Vibe-Serving</h1>
+    <p>AI-Generated Content Mode for Dynamic Web Pages</p>
+</div>
+
+<div class="card">
+    <h2>What is Vibe-Serving?</h2>
+    <p>Vibe-Serving is a unique feature of PyServe that allows you to generate web pages dynamically using AI language models. Instead of serving static files, PyServe can generate content on-the-fly based on prompts you configure for different routes.</p>
+    
+    <div class="alert alert-info">
+        <p><strong>How it works:</strong></p>
+        <ol>
+            <li>A user visits a URL (e.g., <code>/about</code>)</li>
+            <li>PyServe looks up the configured prompt for that route</li>
+            <li>The prompt is sent to an AI model (OpenAI, Claude, etc.)</li>
+            <li>The AI generates a complete HTML page</li>
+            <li>The page is cached and served to the user</li>
+        </ol>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Configuration</h2>
+    <p>Vibe-Serving is configured through a separate <code>vibeconfig.yaml</code> file:</p>
+    
+    <div class="code-block">
+        <pre><code>routes:
+  "/": "Generate a beautiful homepage for PyServe. Use HTML and CSS."
+  "/about": "Generate an 'About Us' page for PyServe. Briefly describe the project."
+  "/contact": "Create a contact page with a feedback form."
+
+settings:
+  cache_ttl: 3600              # Cache time in seconds
+  model: "claude-3.5-sonnet"   # AI model to use
+  timeout: 3600                # Request timeout in seconds
+  api_url: "https://bothub.chat/api/v2/openai/v1"  # Custom API endpoint
+  fallback_enabled: true       # Enable fallback to error page</code></pre>
+    </div>
+    
+    <h3>Environment Variables</h3>
+    <p>You need to set up environment variables for AI API access. Create a <code>.env</code> file:</p>
+    
+    <div class="code-block">
+        <pre><code>OPENAI_API_KEY=your_api_key_here</code></pre>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Starting Vibe-Serving</h2>
+    <p>To enable Vibe-Serving mode, use the <code>--vibe-serving</code> flag:</p>
+    
+    <div class="code-block">
+        <pre><code>python run.py --vibe-serving</code></pre>
+    </div>
+    
+    <p>This will start PyServe in a special mode where it generates content using AI instead of serving static files.</p>
+    
+    <div class="alert alert-warning">
+        <p><strong>Important:</strong> Make sure you have configured your AI API credentials and have sufficient API quota, as each page generation requires an API call (unless cached).</p>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Supported AI Models</h2>
+    <p>Vibe-Serving supports various AI models through OpenAI-compatible APIs:</p>
+    
+    <table>
+        <thead>
+            <tr>
+                <th>Model</th>
+                <th>Provider</th>
+                <th>Configuration</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><code>gpt-3.5-turbo</code></td>
+                <td>OpenAI</td>
+                <td>Default OpenAI API</td>
+            </tr>
+            <tr>
+                <td><code>gpt-4</code></td>
+                <td>OpenAI</td>
+                <td>Default OpenAI API</td>
+            </tr>
+            <tr>
+                <td><code>claude-3.5-sonnet</code></td>
+                <td>Anthropic (via proxy)</td>
+                <td>Custom <code>api_url</code> required</td>
+            </tr>
+            <tr>
+                <td>Local models</td>
+                <td>Ollama, etc.</td>
+                <td>Custom <code>api_url</code> required</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="card">
+    <h2>Caching System</h2>
+    <p>Generated pages are automatically cached to improve performance and reduce API costs:</p>
+    
+    <ul>
+        <li><strong>Cache Location:</strong> <code>./cache/</code> directory</li>
+        <li><strong>Cache TTL:</strong> Configurable via <code>cache_ttl</code> setting</li>
+        <li><strong>Cache Structure:</strong> Mirrors URL structure (e.g., <code>/about</code> → <code>cache/about/index.html</code>)</li>
+        <li><strong>Cache Invalidation:</strong> Automatic after TTL expires</li>
+    </ul>
+    
+    <p>You can manually clear the cache by deleting the <code>cache</code> directory.</p>
+</div>
+
+<div class="card">
+    <h2>Best Practices</h2>
+    
+    <h3>Writing Effective Prompts</h3>
+    <ul>
+        <li>Be specific about the desired output format</li>
+        <li>Include styling and layout requirements</li>
+        <li>Specify any interactive elements needed</li>
+        <li>Consider mobile responsiveness in your prompts</li>
+    </ul>
+    
+    <h3>Performance Optimization</h3>
+    <ul>
+        <li>Set appropriate cache TTL values</li>
+        <li>Use faster models for simple pages</li>
+        <li>Consider pre-generating critical pages</li>
+        <li>Monitor API usage and costs</li>
+    </ul>
+    
+    <h3>Error Handling</h3>
+    <ul>
+        <li>Configure fallback pages for AI failures</li>
+        <li>Set reasonable timeout values</li>
+        <li>Monitor logs for generation errors</li>
+        <li>Have backup static pages ready</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>Use Cases</h2>
+    
+    <div class="alert alert-success">
+        <p><strong>Perfect for:</strong></p>
+        <ul>
+            <li>Prototyping and rapid development</li>
+            <li>Personal projects and demos</li>
+            <li>Content that changes frequently</li>
+            <li>A/B testing different page layouts</li>
+            <li>Educational and experimental projects</li>
+        </ul>
+    </div>
+    
+    <div class="alert alert-warning">
+        <p><strong>Not recommended for:</strong></p>
+        <ul>
+            <li>High-traffic production websites</li>
+            <li>Mission-critical applications</li>
+            <li>Sites requiring guaranteed uptime</li>
+            <li>Applications with strict latency requirements</li>
+        </ul>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Example</h2>
+    <p>Here's a complete example of setting up Vibe-Serving:</p>
+    
+    <h3>1. Create vibeconfig.yaml</h3>
+    <div class="code-block">
+        <pre><code>routes:
+  "/": "Create a modern landing page for PyServe with hero section, features, and call-to-action"
+  "/docs": "Generate a documentation page with navigation and code examples"
+  "/api": "Create an API reference page with endpoints and examples"
+
+settings:
+  cache_ttl: 1800
+  model: "gpt-4"
+  timeout: 30
+  fallback_enabled: true</code></pre>
+    </div>
+    
+    <h3>2. Set up environment</h3>
+    <div class="code-block">
+        <pre><code>echo "OPENAI_API_KEY=your_key_here" > .env</code></pre>
+    </div>
+    
+    <h3>3. Start the server</h3>
+    <div class="code-block">
+        <pre><code>python run.py --vibe-serving -p 8080</code></pre>
+    </div>
+    
+    <p>Now visit <code>http://localhost:8080/</code> and watch as PyServe generates a unique page for you!</p>
+</div>

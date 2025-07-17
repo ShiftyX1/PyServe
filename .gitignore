@@ -30,3 +30,6 @@ collected_files_*/
 .env.example
 
 cache/
+
+just_testing/
+landing/

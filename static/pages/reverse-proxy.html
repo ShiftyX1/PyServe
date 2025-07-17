@@ -31,19 +31,21 @@
     - host: localhost      # Backend server host
       path: /api          # Path to proxy
       port: 3000         # Backend server port
-      websocket: false   # HTTP-only proxy
+      ssl: false         # Backend SSL/TLS
       
     - host: localhost
       path: /ws
       port: 8080
-      websocket: true    # Enable WebSocket support
       ssl: false         # Backend SSL/TLS
       
     - host: example.com
       path: /socket.io
       port: 443
-      websocket: true
       ssl: true          # Use SSL for backend connection</code></pre>
+    </div>
+    
+    <div class="alert alert-info">
+        <p><strong>WebSocket Support:</strong> WebSocket connections are automatically detected by headers and do not require special configuration. All proxy configurations support both HTTP and WebSocket protocols.</p>
     </div>
     
     <h3>Configuration Options</h3>
@@ -76,12 +78,6 @@
                 <td>80</td>
             </tr>
             <tr>
-                <td><code>websocket</code></td>
-                <td>boolean</td>
-                <td>Enable WebSocket support</td>
-                <td>false</td>
-            </tr>
-            <tr>
                 <td><code>ssl</code></td>
                 <td>boolean</td>
                 <td>Use SSL/TLS for backend connection</td>
@@ -89,6 +85,10 @@
             </tr>
         </tbody>
     </table>
+    
+    <div class="alert alert-info">
+        <p><strong>Note:</strong> The <code>websocket</code> parameter has been removed in favor of automatic WebSocket detection via request headers.</p>
+    </div>
 </div>
 
 <div class="card">
