@@ -1,4 +1,4 @@
-# PyServe
+# Shifty's PyServe
 
 PyServe is a modern, async HTTP server written in Python. Originally created for educational purposes, it has evolved into a powerful tool for rapid prototyping and serving web applications with unique features like AI-generated content.
 
