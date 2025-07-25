@@ -1,0 +1,67 @@
+# Security Extension Configuration
+# Внешний модуль безопасности для PyServe V2
+
+type: security
+config:
+  # CORS настройки
+  cors:
+    enabled: true
+    origins: 
+      - "https://mydomain.com"
+      - "https://www.mydomain.com"
+      - "http://localhost:3000"  # Для разработки
+    methods: 
+      - "GET"
+      - "POST" 
+      - "PUT"
+      - "DELETE"
+      - "OPTIONS"
+    headers:
+      - "Content-Type"
+      - "Authorization"
+      - "X-Requested-With"
+    credentials: true
+    max_age: 86400
+  
+  # Rate limiting
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+    burst: 10
+    # Различные лимиты для разных путей
+    rules:
+      "/api/": 
+        requests_per_minute: 30
+        burst: 5
+      "/auth/":
+        requests_per_minute: 10
+        burst: 2
+  
+  # CSRF защита
+  csrf_protection:
+    enabled: true
+    secret: "your-csrf-secret-key"
+    cookie_name: "csrf_token"
+    header_name: "X-CSRF-Token"
+    exempt_paths:
+      - "/api/public/"
+      - "/health"
+  
+  # Headers безопасности
+  security_headers:
+    enabled: true
+    headers:
+      "X-Content-Type-Options": "nosniff"
+      "X-Frame-Options": "DENY"
+      "X-XSS-Protection": "1; mode=block"
+      "Strict-Transport-Security": "max-age=31536000; includeSubDomains"
+      "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline'"
+  
+  # IP whitelist/blacklist
+  ip_filtering:
+    enabled: false
+    whitelist:
+      - "127.0.0.1"
+      - "192.168.1.0/24"
+    blacklist:
+      - "10.0.0.0/8"

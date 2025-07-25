@@ -33,7 +33,9 @@ class AsyncHTTPServer(AsyncTCPServer):
                  locations: Optional[Dict[str, Any]] = None,
                  ssl_cert: Optional[str] = None,
                  ssl_key: Optional[str] = None,
-                 do_check_proxy_availability: bool = True):
+                 do_check_proxy_availability: bool = True,
+                 routing_extension: Any = None,
+                 default_root: bool = False):
         
         ssl_context = None
         if ssl_cert and ssl_key:
@@ -44,7 +46,7 @@ class AsyncHTTPServer(AsyncTCPServer):
                 raise ValueError(f"Error loading SSL certificates: {e}")
         
         super().__init__(host, port, backlog, ssl_context)
-        
+
         # Initialize server attributes
         self.static_dir = os.path.abspath(static_dir)
         self.template_dir = template_dir
@@ -56,10 +58,11 @@ class AsyncHTTPServer(AsyncTCPServer):
         self.client_session: Optional[aiohttp.ClientSession] = None
         self.ssl_enabled = ssl_context is not None
         self.do_check_proxy_availability = do_check_proxy_availability
-
+        self.routing_extension = routing_extension  # Новый параметр для расширения маршрутизации
+        self.default_root = default_root  # Новый параметр для обработки корневого пути
         # Ensure directories exist
         os.makedirs(self.static_dir, exist_ok=True)
-        
+
         # Initialize handlers
         self.static_handler = StaticFileHandler(self.static_dir, debug=debug)
         self.redirect_handler = RedirectHandler(self.redirections)
@@ -127,18 +130,59 @@ class AsyncHTTPServer(AsyncTCPServer):
         
     async def _route_request(self, request: HTTPRequest) -> HTTPResponse:
         """Route request to the appropriate handler"""
+        # 1. Попытка маршрутизации через routing_extension (если есть)
+        if self.routing_extension is not None:
+            try:
+                match = self.routing_extension.match_route(request.path)
+                if match:
+                    self.logger.info(f"[routing_extension] Routed {request.path} -> {match.pattern} (priority {match.priority})")
+                    # Здесь можно реализовать обработку match.config (proxy_pass, root, return и т.д.)
+                    # Пример: если есть proxy_pass
+                    if 'proxy_pass' in match.config:
+                        # Можно добавить подстановку параметров, если нужно
+                        return await self.proxy_handler.handle(request, match.config)
+                    # Если есть root/static — отдаём файл
+                    if 'root' in match.config:
+                        if 'index_file' in match.config:
+                            # Если указан index_file, то ищем его
+                            static_path = os.path.join(match.config['root'], match.config['index_file'])
+                        else:
+                            static_path = os.path.join(match.config['root'], request.path.lstrip('/'))
+                        
+                        if os.path.isfile(static_path):
+                            return await self.static_handler.serve_file(static_path)
+                    # Если есть return — вернуть кастомный ответ
+                    if 'return' in match.config:
+                        body = match.config.get('body', match.config['return'])
+                        content_type = match.config.get('content_type', 'text/plain')
+                        return HTTPResponse(200, headers={"Content-Type": content_type}, body=body)
+                    # SPA fallback: если pattern == '__default__' и spa_fallback
+                    if match.pattern == '__default__' and match.config.get('spa_fallback'):
+                        root = match.config.get('root', self.static_dir)
+                        index_file = match.config.get('index_file', 'index.html')
+                        spa_path = os.path.join(root, index_file)
+                        if os.path.isfile(spa_path):
+                            self.logger.info(f"[routing_extension] SPA fallback: serving {spa_path} for {request.path}")
+                            return await self.static_handler.serve_file(spa_path)
+                        else:
+                            self.logger.warning(f"[routing_extension] SPA fallback file not found: {spa_path}")
+            except Exception as e:
+                self.logger.error(f"routing_extension error: {e}")
+                # fallback на старую схему
+
+        # 2. Старая схема маршрутизации (locations, reverse_proxy, static и т.д.)
         # Check for proxy paths first
         for proxy_config in self.reverse_proxy:
             proxy_path = proxy_config.get('path', '/')
             if request.path.startswith(proxy_path):
                 self.logger.info(f"Proxying request {request.path} to {proxy_config['host']}:{proxy_config['port']}")
                 return await self.proxy_handler.handle(request, proxy_config)
-        
+
         # Check for redirects
         if request.path in self.redirections:
             self.logger.info(f"Redirecting {request.path} to {self.redirections[request.path]}")
             return self.redirect_handler.handle(request)
-        
+
         # Check for location settings
         if request.path in self.locations.keys():
             auth_handler_temp = self.auth_handler(self.locations[request.path])
@@ -151,20 +195,20 @@ class AsyncHTTPServer(AsyncTCPServer):
                     },
                     body="<h1>401 Unauthorized</h1><p>Authentication is required to access this resource.</p>"
                 )
-            
+
         # Handle root path
-        if request.path == '/':
+        if request.path == '/' and self.default_root:
             return await self._handle_root(request)
-            
+
         # Handle static files with /static/ prefix
         if request.path.startswith('/static/'):
             return await self.static_handler.handle(request)
-            
+
         # Try to serve file from static directory
         file_path = os.path.join(self.static_dir, request.path.lstrip('/'))
         if os.path.isfile(file_path):
             return await self.static_handler.serve_file(file_path)
-            
+
         # File not found
         return await self._handle_error(404, "Not Found", f"The requested URL {request.path} was not found on this server.")
         

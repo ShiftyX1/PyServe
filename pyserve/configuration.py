@@ -58,6 +58,11 @@ class Configuration:
         if 'reverse_proxy' not in self.server_config:
             self.server_config['reverse_proxy'] = []
 
+        if 'default_root' in self.server_config:
+            self.default_root = self.server_config['default_root']
+        else:
+            self.default_root = False
+
         # Extensions (only for V2)
         self.extensions: Dict[str, BaseExtension] = {}
         self._load_extensions()

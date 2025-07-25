@@ -1,0 +1,67 @@
+# PyServe V2 Configuration Example
+# Демонстрирует новые возможности системы расширений
+
+version: 2
+
+# ОБЯЗАТЕЛЬНЫЕ МОДУЛИ (как в V1, без изменений)
+http:
+  static_dir: ./static
+  templates_dir: ./templates
+
+server:
+  host: 0.0.0.0
+  port: 8080
+  backlog: 5
+  default_root: false
+  redirect_instructions:
+    - "/docs": "/docs.html"
+
+ssl:
+  enabled: false
+  cert_file: ./ssl/cert.pem
+  key_file: ./ssl/key.pem
+
+logging:
+  level: INFO
+  console_output: true
+  log_file: ./logs/pyserve.log
+
+# НОВОЕ: Расширяемые модули
+extensions:
+  # Встроенное расширение для продвинутой маршрутизации
+  - type: routing
+    config:
+      regex_locations:
+        # API маршруты с захватом версии
+        "~^/api/v(?P<version>\\d+)/":
+          proxy_pass: "http://backend:3000"
+          headers:
+            - "API-Version: {version}"
+            - "X-Forwarded-For: $remote_addr"
+        
+        # Статические файлы с долгим кэшем
+        "~*\\.(js|css|png|jpg|gif|ico|svg|woff2?)$":
+          root: "./static"
+          cache_control: "public, max-age=31536000"
+          headers:
+            - "Access-Control-Allow-Origin: *"
+        
+        # Exact match для health check
+        "=/health":
+          return: "200 OK"
+          content_type: "text/plain"
+
+        "=/":
+          root: "./static"
+          index_file: "index.html"
+        
+        # SPA fallback для всех остальных маршрутов
+        "__default__":
+          spa_fallback: true
+          root: "./static"
+          index_file: "docs.html"
+          # Исключения для SPA (не попадают в fallback)
+          exclude_patterns:
+            - "/api/"
+            - "/admin/"
+            - "/assets/"

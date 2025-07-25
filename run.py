@@ -276,41 +276,50 @@ async def run_server():
     
     try:
         loop = asyncio.get_event_loop()
-        
+
+        # Routing extension integration (V2)
+        routing_extension = config.get_extension('routing')
+        if routing_extension:
+            logger.info("RoutingExtension (V2) detected: using advanced routing from extensions.")
+        else:
+            logger.info("RoutingExtension not found: using legacy routing (locations/reverse_proxy).")
+
         server = AsyncHTTPServer(
-            host, 
-            port, 
-            static_dir, 
-            template_dir, 
-            backlog, 
+            host,
+            port,
+            static_dir,
+            template_dir,
+            backlog,
             debug=args.debug or log_level <= 10,
             redirections=config.redirections,
             locations=config.locations,
             reverse_proxy=reverse_proxy,
             ssl_cert=ssl_cert,
             ssl_key=ssl_key,
-            do_check_proxy_availability=not args.skip_proxy_check
+            do_check_proxy_availability=not args.skip_proxy_check,
+            routing_extension=routing_extension,  # Передаём расширение, если оно есть
+            default_root=config.default_root  # Передаём флаг для обработки корневого пути
         )
-        
+
         setup_signal_handlers(loop, server)
-        
+
         protocol = "HTTPS" if use_ssl else "HTTP"
         logger.info(f"PyServe v{__version__} (Async {protocol}) starting")
         if args.debug:
             logger.debug(f"Configuration loaded: {config.server_config}")
-        
+
         protocol_url = "https" if use_ssl else "http"
         logger.info(f"Server running at {protocol_url}://{host}:{port}/")
         logger.info(f"Static files directory: {os.path.abspath(static_dir)}")
         logger.info(f"Template files directory: {os.path.abspath(template_dir)}")
-        
+
         if use_ssl:
             logger.info(f"SSL enabled with certificate: {ssl_cert}")
-            
+
         if reverse_proxy:
             for proxy in reverse_proxy:
                 logger.info(f"Reverse proxy configured: {proxy['path']} -> {proxy['host']}:{proxy['port']}")
-        
+
         try:
             await server.start()
         except asyncio.exceptions.CancelledError:
@@ -319,7 +328,7 @@ async def run_server():
         except Exception as e:
             logger.critical(f"Failed to start server: {e}")
             sys.exit(1)
-        
+
     except Exception as e:
         logger.critical(f"Failed to start server: {e}")
         if isinstance(e, PermissionError):
