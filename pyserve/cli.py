@@ -1,0 +1,350 @@
+#!/usr/bin/env python3
+"""
+PyServe - Async HTTP Server CLI
+"""
+
+import os
+import sys
+import signal
+import argparse
+import asyncio
+from . import AsyncHTTPServer, Configuration, get_logger, TestConfiguration
+from . import __version__
+from .vibe.vibe_config import VibeConfig
+from .vibe.service import VibeService
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description='PyServe - Async HTTP Server\nVersion {}'.format(__version__),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+PyServe version {}
+Github repository, feel free to contribute: https://github.com/ShiftyX1/PyServe
+
+Examples:
+  pyserve                             # Run with default settings
+  pyserve -p 8080                     # Run on port 8080
+  pyserve -H 0.0.0.0 -p 8000          # Run on all interfaces
+  pyserve -s ./my_static              # Use custom static directory
+  pyserve -t ./my_templates           # Use custom templates directory
+  pyserve -c /path/to/config.yaml     # Use custom config file
+  pyserve --proxy host:port/path      # Enable reverse proxy
+  pyserve --ssl --cert ./ssl/cert.pem --key ./ssl/key.pem  # Run with HTTPS
+  pyserve --vibe-serving              # Enable AI-generated content
+""".format(__version__)
+    )
+    
+    parser.add_argument('-c', '--config', type=str, default='./config.yaml',
+                        help='Path to configuration file')
+    parser.add_argument('-p', '--port', type=int,
+                        help='Port to run the server on (overrides config)')
+    parser.add_argument('-H', '--host', type=str,
+                        help='Host to bind to (overrides config)')
+    parser.add_argument('-s', '--static', type=str,
+                        help='Directory for static files (overrides config)')
+    parser.add_argument('-t', '--templates', type=str,
+                        help='Directory for template files (overrides config)')
+    parser.add_argument('-v', '--version', action='store_true',
+                        help='Show PyServe version and exit')
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='Enable debug mode (more verbose logging)')
+    parser.add_argument('--proxy', type=str,
+                        help='Configure reverse proxy with format host:port/path')
+    parser.add_argument('--test', type=str, choices=['all', 'configuration', 'directories'],
+                        help='Run tests')
+    parser.add_argument('--skip-proxy-check', action='store_true',
+                        help='Skip reverse proxy availability check at startup')
+    parser.add_argument('--vibe-serving', action='store_true',
+                       help='Enable Vibe-Serving mode (AI-generated content)')
+    
+    ssl_group = parser.add_argument_group('SSL Options')
+    ssl_group.add_argument('--ssl', action='store_true',
+                        help='Enable SSL/TLS (HTTPS)')
+    ssl_group.add_argument('--cert', type=str,
+                        help='Path to SSL certificate file')
+    ssl_group.add_argument('--key', type=str,
+                        help='Path to SSL private key file')
+    ssl_group.add_argument('--ssl-config', action='store_true',
+                        help='Configure SSL settings in the config file and exit')
+    
+    return parser.parse_args()
+
+def setup_signal_handlers(loop, server):
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(
+            sig,
+            lambda: asyncio.create_task(shutdown(loop, server))
+        )
+
+async def shutdown(loop, server):
+    await server.stop()
+    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+    
+    for task in tasks:
+        task.cancel()
+    
+    await asyncio.gather(*tasks, return_exceptions=True)
+    loop.stop()
+
+def parse_proxy_arg(proxy_arg):
+    if not proxy_arg:
+        return None
+        
+    try:
+        if '/' in proxy_arg:
+            hostport, path = proxy_arg.split('/', 1)
+            if not path.startswith('/'):
+                path = '/' + path
+        else:
+            hostport = proxy_arg
+            path = '/'
+            
+        if ':' in hostport:
+            host, port_str = hostport.split(':', 1)
+            port = int(port_str)
+        else:
+            host = hostport
+            port = 80
+            
+        return {
+            "host": host,
+            "port": port,
+            "path": path
+        }
+    except Exception as e:
+        print(f"Error parsing proxy argument: {e}")
+        print("Format should be host:port/path")
+        sys.exit(1)
+
+async def run_server():
+    args = parse_arguments()
+    
+    if args.version:
+        print(f"Don't forget to star the repository if you like it!")
+        print(f"https://github.com/ShiftyX1/PyServe")
+        print(f"\nThanks for using PyServe!")
+        print(f"Made with ❤️ by ShiftyX1")
+        if __version__.startswith('pre'):
+            print("\nPAY ATTENTION! This is a pre-release version of PyServe. It may contain bugs and unstable features.\nIf you encounter any issues, please report them to the issues page on GitHub.")
+        print(f"PyServe version {__version__}")
+        print(f"\nReady to serve!")
+        sys.exit(0)
+    
+    if getattr(args, 'vibe_serving', False):
+        vibe_config = VibeConfig()
+        vibe_config.load_config('vibeconfig.yaml')
+        config = Configuration()
+        
+        log_level = config.get_log_level()
+        logger_config = config.logging_config
+        logger = get_logger(
+            level=log_level,
+            log_file=logger_config.get('log_file'),
+            console_output=logger_config.get('console_output', True),
+            use_colors=logger_config.get('use_colors', True),
+            use_rotation=logger_config.get('use_rotation', False),
+            max_log_size=logger_config.get('max_log_size', 10485760),
+            backup_count=logger_config.get('backup_count', 5),
+            structured_logs=logger_config.get('structured_logs', False)
+        )
+        
+        host = args.host or config.server_config.get('host', '127.0.0.1')
+        port = args.port or config.server_config.get('port', 8000)
+        
+        server = AsyncHTTPServer(
+            host=host,
+            port=port,
+            static_dir=config.http_config.get('static_dir', './static'),
+            template_dir=config.http_config.get('templates_dir', './templates'),
+            backlog=config.server_config.get('backlog', 5),
+            debug=args.debug or config.get_log_level() <= 10,
+            redirections=config.redirections,
+            locations=config.locations,
+            reverse_proxy=config.server_config.get('reverse_proxy', []),
+            ssl_cert=None,
+            ssl_key=None,
+            do_check_proxy_availability=not args.skip_proxy_check
+        )
+        try:
+            from dotenv import load_dotenv
+            load_dotenv('.env.example')
+        except ImportError:
+            pass  # dotenv is optional
+            
+        vibe_service = VibeService(server, config, vibe_config)
+        
+        logger.info(f"PyVibeServe v{__version__} (AI-Generated Content) starting")
+        if args.debug:
+            logger.debug(f"Vibe configuration loaded from vibeconfig.yaml")
+            logger.debug(f"Routes configured: {list(vibe_config.routes.keys())}")
+        
+        logger.info(f"Vibe-Serving running at http://{host}:{port}/")
+        logger.info(f"AI Model: {vibe_config.settings.get('model', 'gpt-3.5-turbo')}")
+        logger.info(f"Cache TTL: {vibe_config.settings.get('cache_ttl', 3600)} seconds")
+        
+        try:
+            runner = await vibe_service.run()
+            while True:
+                await asyncio.sleep(3600)
+        except KeyboardInterrupt:
+            logger.info("Shutting down PyVibeServe...")
+            if 'runner' in locals():
+                await runner.cleanup()
+        return
+
+    config = Configuration(args.config)
+    log_level = config.get_log_level()
+    logger_config = config.logging_config
+    logger = get_logger(
+        level=log_level,
+        log_file=logger_config.get('log_file'),
+        console_output=logger_config.get('console_output', True),
+        use_colors=logger_config.get('use_colors', True),
+        use_rotation=logger_config.get('use_rotation', False),
+        max_log_size=logger_config.get('max_log_size', 10485760),
+        backup_count=logger_config.get('backup_count', 5),
+        structured_logs=logger_config.get('structured_logs', False)
+    )
+
+    # Routing extension integration (V2)
+    routing_extension = config.get_extension('routing') if hasattr(config, 'get_extension') else None
+    if routing_extension:
+        logger.info("RoutingExtension (V2) detected: using advanced routing from extensions.")
+    else:
+        logger.info("RoutingExtension not found: using legacy routing (locations/reverse_proxy).")
+    
+    if args.proxy:
+        proxy_config = parse_proxy_arg(args.proxy)
+        if proxy_config:
+            if 'reverse_proxy' not in config.server_config:
+                config.server_config['reverse_proxy'] = []
+            config.server_config['reverse_proxy'].append(proxy_config)
+
+    if args.test:
+        test_config = TestConfiguration()
+        
+        if args.test == 'all':
+            exit_code = test_config.run_all_tests()
+            sys.exit(exit_code)
+                
+        elif args.test == 'configuration':
+            load_result = test_config.test_load_config()
+            if not load_result:
+                sys.exit(3)
+                
+            config_result = test_config.test_configuration()
+            sys.exit(config_result)
+            
+        elif args.test == 'directories':
+            dir_result = test_config.test_static_directories()
+            sys.exit(0 if dir_result else 1)
+
+    if args.ssl_config:
+        if not args.ssl or not args.cert or not args.key:
+            logger.error("To configure SSL, you must provide --ssl, --cert and --key options")
+            sys.exit(1)
+            
+        if not os.path.isfile(args.cert):
+            logger.error(f"SSL certificate file not found: {args.cert}")
+            sys.exit(1)
+            
+        if not os.path.isfile(args.key):
+            logger.error(f"SSL key file not found: {args.key}")
+            sys.exit(1)
+            
+        config.configure_ssl(enabled=True, cert_file=args.cert, key_file=args.key)
+        logger.info(f"SSL configuration saved to {config.config_path}")
+        sys.exit(0)
+    
+    host = args.host or config.server_config.get('host')
+    port = args.port or config.server_config.get('port')
+    backlog = config.server_config.get('backlog')
+    static_dir = args.static or config.http_config.get('static_dir')
+    template_dir = args.templates or config.http_config.get('templates_dir')
+    reverse_proxy = config.server_config.get('reverse_proxy', [])
+
+    use_ssl = args.ssl or config.ssl_config.enabled
+    ssl_cert = None
+    ssl_key = None
+
+    if use_ssl:
+        ssl_cert = args.cert or config.ssl_config.cert_file
+        ssl_key = args.key or config.ssl_config.key_file
+
+        if not ssl_cert or not os.path.isfile(ssl_cert):
+            logger.error(f"SSL certificate file not found: {ssl_cert}")
+            logger.info("Disabling SSL. Run with --ssl, --cert and --key to specify valid certificate files.")
+            use_ssl = False
+            ssl_cert = None
+            ssl_key = None
+        elif not ssl_key or not os.path.isfile(ssl_key):
+            logger.error(f"SSL key file not found: {ssl_key}")
+            logger.info("Disabling SSL. Run with --ssl, --cert and --key to specify valid certificate files.")
+            use_ssl = False
+            ssl_cert = None
+            ssl_key = None
+
+    try:
+        loop = asyncio.get_event_loop()
+
+        server = AsyncHTTPServer(
+            host,
+            port,
+            static_dir,
+            template_dir,
+            backlog,
+            debug=args.debug or log_level <= 10,
+            redirections=config.redirections,
+            locations=config.locations,
+            reverse_proxy=reverse_proxy,
+            ssl_cert=ssl_cert,
+            ssl_key=ssl_key,
+            do_check_proxy_availability=not args.skip_proxy_check,
+            routing_extension=routing_extension,
+            default_root=getattr(config, 'default_root', None)
+        )
+
+        setup_signal_handlers(loop, server)
+
+        protocol = "HTTPS" if use_ssl else "HTTP"
+        logger.info(f"PyServe v{__version__} (Async {protocol}) starting")
+        if args.debug:
+            logger.debug(f"Configuration loaded: {config.server_config}")
+
+        protocol_url = "https" if use_ssl else "http"
+        logger.info(f"Server running at {protocol_url}://{host}:{port}/")
+        logger.info(f"Static files directory: {os.path.abspath(static_dir)}")
+        logger.info(f"Template files directory: {os.path.abspath(template_dir)}")
+
+        if use_ssl:
+            logger.info(f"SSL enabled with certificate: {ssl_cert}")
+
+        if reverse_proxy:
+            for proxy in reverse_proxy:
+                logger.info(f"Reverse proxy configured: {proxy['path']} -> {proxy['host']}:{proxy['port']}")
+
+        try:
+            await server.start()
+        except asyncio.exceptions.CancelledError:
+            logger.info("Server was cancelled by user")
+            sys.exit(0)
+        except Exception as e:
+            logger.critical(f"Failed to start server: {e}")
+            sys.exit(1)
+
+    except Exception as e:
+        logger.critical(f"Failed to start server: {e}")
+        if isinstance(e, PermissionError):
+            logger.warning("Permission denied: Please run the server with sudo privileges (or maybe you should change the default HTTP port in config.yaml)")
+        sys.exit(1)
+
+def main():
+    """Main entry point for PyServe CLI"""
+    try:
+        asyncio.run(run_server()) # TODO: add uvloop support on Unix systems
+    except KeyboardInterrupt:
+        pass
+
+if __name__ == "__main__":
+    main()
