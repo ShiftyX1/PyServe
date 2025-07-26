@@ -71,11 +71,14 @@ Examples:
     return parser.parse_args()
 
 def setup_signal_handlers(loop, server):
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(
-            sig,
-            lambda: asyncio.create_task(shutdown(loop, server))
-        )
+    if sys.platform == 'win32':
+        pass # Hope that KeyboardInterrupt will work fine on Windows
+    else:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(
+                sig,
+                lambda: asyncio.create_task(shutdown(loop, server))
+            )
 
 async def shutdown(loop, server):
     await server.stop()
@@ -302,7 +305,7 @@ async def run_server():
             ssl_key=ssl_key,
             do_check_proxy_availability=not args.skip_proxy_check,
             routing_extension=routing_extension,
-            default_root=getattr(config, 'default_root', None)
+            default_root=getattr(config, 'default_root', True)
         )
 
         setup_signal_handlers(loop, server)
@@ -335,6 +338,8 @@ async def run_server():
 
     except Exception as e:
         logger.critical(f"Failed to start server: {e}")
+        if isinstance(e, NotImplementedError):
+            logger.critical("You are probably using Windows. PyServe does not support some features on Windows due to limitaions of asyncio library.\nI'm working on it.")
         if isinstance(e, PermissionError):
             logger.warning("Permission denied: Please run the server with sudo privileges (or maybe you should change the default HTTP port in config.yaml)")
         sys.exit(1)
