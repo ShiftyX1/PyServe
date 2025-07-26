@@ -4,7 +4,7 @@ PyServe is a modern, async HTTP server written in Python. Originally created for
 
 <img src="./images/logo.png" alt="isolated" width="150"/>
 
-[Project Roadmap](./roadmap.md)
+[More on web page](https://pyserve.org/)
 
 ## Project Overview
 
