@@ -1,6 +1,6 @@
 [project]
 name = "pyserve"
-version = "0.5.0"
+version = "v0.5.0"
 description = "Modern, async HTTP server written in Python"
 authors = [
     {name = "github.com/ShiftyX1"}
