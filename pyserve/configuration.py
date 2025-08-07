@@ -61,7 +61,7 @@ class Configuration:
         if 'default_root' in self.server_config:
             self.default_root = self.server_config['default_root']
         else:
-            self.default_root = False
+            self.default_root = True 
 
         # Extensions (only for V2)
         self.extensions: Dict[str, BaseExtension] = {}

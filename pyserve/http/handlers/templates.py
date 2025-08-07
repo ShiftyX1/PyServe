@@ -40,32 +40,63 @@ class TemplateHandler:
         Returns:
             str: Rendered error page HTML
         """
-        context = {
-            "status_code": str(status_code),
-            "status_text": status_text,
-            "error_details": error_details
-        }
-        
         try:
-            return await self.template_engine.render_template(f"error_{status_code}.html", context)
-        except:
-            try:
-                return await self.template_engine.render_template("errors.html", context)
-            except:
-                return f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>{status_code} - {status_text}</title>
-                    <style>
-                        body {{ font-family: Arial, sans-serif; margin: 40px; text-align: center; }}
-                        h1 {{ color: #e74c3c; }}
-                    </style>
-                </head>
-                <body>
-                    <h1>{status_code} - {status_text}</h1>
-                    <p>{error_details}</p>
-                    <p><a href="/">Return to home page</a></p>
-                </body>
-                </html>
-                """
+            return await self.template_engine.render_error(status_code, status_text, error_details)
+        except Exception as e:
+            return f"""<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{status_code} - {status_text}</title>
+    <style>
+        body {{ 
+            font-family: Arial, sans-serif; 
+            margin: 40px; 
+            text-align: center; 
+            background-color: #f5f5f5;
+        }}
+        .container {{
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }}
+        h1 {{ 
+            color: #e74c3c; 
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }}
+        .error {{ 
+            background: #ffe6e6; 
+            padding: 20px; 
+            border-radius: 4px; 
+            margin: 20px 0; 
+            border-left: 4px solid #e74c3c;
+        }}
+        a {{
+            color: white;
+            background: #3182ce;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 4px;
+            display: inline-block;
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>{status_code} - {status_text}</h1>
+        <p>{error_details}</p>
+        <div class="error">
+            <strong>Critical Template Error:</strong> {str(e)}<br>
+            <small>This is the final fallback handler.</small>
+        </div>
+        <p><a href="/">Return to home page</a></p>
+        <hr style="margin: 20px 0; border: none; height: 1px; background: #ddd;">
+        <small>PyServe - Critical error handler</small>
+    </div>
+</body>
+</html>"""
