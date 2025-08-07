@@ -1,0 +1,9 @@
+name: Issue Templates
+
+description: Configures the issue templates for the repository.
+
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Issues
+    url: https://github.com/ShiftyX1/PyServe/issues
+    about: Ask questions or discuss features and bugs.

@@ -1,0 +1,122 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - master
+    paths-ignore:
+      - 'README.md'
+      - 'docs/**'
+      - '.gitignore'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      packages: write
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine toml
+    
+    - name: Extract version from pyproject.toml
+      id: extract_version
+      run: |
+        VERSION=$(python -c "import toml; print(toml.load('pyproject.toml')['project']['version'])")
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version extracted: $VERSION"
+    
+    - name: Check if tag exists
+      id: check_tag
+      run: |
+        if git rev-parse "v${{ steps.extract_version.outputs.version }}" >/dev/null 2>&1; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Build package
+      if: steps.check_tag.outputs.exists == 'false'
+      run: |
+        python -m build
+    
+    - name: Create Git tag
+      if: steps.check_tag.outputs.exists == 'false'
+      run: |
+        git config user.name github-actions
+        git config user.email github-actions@github.com
+        git tag v${{ steps.extract_version.outputs.version }}
+        git push origin v${{ steps.extract_version.outputs.version }}
+    
+    - name: Read CHANGELOG.md
+      id: changelog
+      if: steps.check_tag.outputs.exists == 'false'
+      run: |
+        if [ -f "CHANGELOG.md" ]; then
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          cat CHANGELOG.md >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          echo "changelog=No changelog available" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Release
+      if: steps.check_tag.outputs.exists == 'false'
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.extract_version.outputs.version }}
+        name: PyServe v${{ steps.extract_version.outputs.version }}
+        draft: true
+        prerelease: false
+        files: |
+          dist/*.whl
+          dist/*.tar.gz
+        body: |
+          # PyServe v${{ steps.extract_version.outputs.version }}
+          
+          ## Installation
+          
+          ```bash
+          pip install pyserve # Not available on PyPI yet, use the GitHub release
+          ```
+          
+          Or install from source:
+          ```bash
+          git clone https://github.com/ShiftyX1/PyServe.git
+          cd PyServe
+          poetry build
+          pip install dist/pyserve-${{ steps.extract_version.outputs.version }}-py3-none-any.whl
+          ```
+          
+          ## Quick Start
+          
+          ```bash
+          # Start server with default settings
+          pyserve
+          
+          # Start with custom host and port
+          pyserve --host 0.0.0.0 --port 8080
+          
+          # Start with SSL
+          pyserve --ssl --cert cert.pem --key key.pem
+          ```
+          
+          ## Changelog
+          
+          ${{ steps.changelog.outputs.changelog }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
