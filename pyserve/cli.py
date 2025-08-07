@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-PyServe - Async HTTP Server Runner
+PyServe - Async HTTP Server CLI
 """
 
 import os
@@ -8,10 +8,10 @@ import sys
 import signal
 import argparse
 import asyncio
-from pyserve import AsyncHTTPServer, Configuration, get_logger, TestConfiguration
-from pyserve import __version__
-from pyserve.vibe.vibe_config import VibeConfig
-from pyserve.vibe.service import VibeService
+from . import AsyncHTTPServer, Configuration, get_logger, TestConfiguration
+from . import __version__
+from .vibe.vibe_config import VibeConfig
+from .vibe.service import VibeService
 
 
 def parse_arguments():
@@ -23,14 +23,15 @@ PyServe version {}
 Github repository, feel free to contribute: https://github.com/ShiftyX1/PyServe
 
 Examples:
-  python run.py                       # Run with default settings
-  python run.py -p 8080               # Run on port 8080
-  python run.py -H 0.0.0.0 -p 8000    # Run on all interfaces
-  python run.py -s ./my_static        # Use custom static directory
-  python run.py -t ./my_templates     # Use custom templates directory
-  python run.py -c /path/to/config.yaml  # Use custom config file
-  python run.py --proxy host:port/path   # Enable reverse proxy
-  python run.py --ssl --cert ./ssl/cert.pem --key ./ssl/key.pem  # Run with HTTPS
+  pyserve                             # Run with default settings
+  pyserve -p 8080                     # Run on port 8080
+  pyserve -H 0.0.0.0 -p 8000          # Run on all interfaces
+  pyserve -s ./my_static              # Use custom static directory
+  pyserve -t ./my_templates           # Use custom templates directory
+  pyserve -c /path/to/config.yaml     # Use custom config file
+  pyserve --proxy host:port/path      # Enable reverse proxy
+  pyserve --ssl --cert ./ssl/cert.pem --key ./ssl/key.pem  # Run with HTTPS
+  pyserve --vibe-serving              # Enable AI-generated content
 """.format(__version__)
     )
     
@@ -70,11 +71,14 @@ Examples:
     return parser.parse_args()
 
 def setup_signal_handlers(loop, server):
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(
-            sig,
-            lambda: asyncio.create_task(shutdown(loop, server))
-        )
+    if sys.platform == 'win32':
+        pass # Hope that KeyboardInterrupt will work fine on Windows
+    else:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            loop.add_signal_handler(
+                sig,
+                lambda: asyncio.create_task(shutdown(loop, server))
+            )
 
 async def shutdown(loop, server):
     await server.stop()
@@ -165,8 +169,12 @@ async def run_server():
             ssl_key=None,
             do_check_proxy_availability=not args.skip_proxy_check
         )
-        from dotenv import load_dotenv
-        load_dotenv('.env.example')
+        try:
+            from dotenv import load_dotenv
+            load_dotenv('.env.example')
+        except ImportError:
+            pass  # dotenv is optional
+            
         vibe_service = VibeService(server, config, vibe_config)
         
         logger.info(f"PyVibeServe v{__version__} (AI-Generated Content) starting")
@@ -189,7 +197,6 @@ async def run_server():
         return
 
     config = Configuration(args.config)
-    
     log_level = config.get_log_level()
     logger_config = config.logging_config
     logger = get_logger(
@@ -202,6 +209,13 @@ async def run_server():
         backup_count=logger_config.get('backup_count', 5),
         structured_logs=logger_config.get('structured_logs', False)
     )
+
+    # Routing extension integration (V2)
+    routing_extension = config.get_extension('routing') if hasattr(config, 'get_extension') else None
+    if routing_extension:
+        logger.info("RoutingExtension (V2) detected: using advanced routing from extensions.")
+    else:
+        logger.info("RoutingExtension not found: using legacy routing (locations/reverse_proxy).")
     
     if args.proxy:
         proxy_config = parse_proxy_arg(args.proxy)
@@ -252,15 +266,15 @@ async def run_server():
     static_dir = args.static or config.http_config.get('static_dir')
     template_dir = args.templates or config.http_config.get('templates_dir')
     reverse_proxy = config.server_config.get('reverse_proxy', [])
-    
+
     use_ssl = args.ssl or config.ssl_config.enabled
     ssl_cert = None
     ssl_key = None
-    
+
     if use_ssl:
         ssl_cert = args.cert or config.ssl_config.cert_file
         ssl_key = args.key or config.ssl_config.key_file
-        
+
         if not ssl_cert or not os.path.isfile(ssl_cert):
             logger.error(f"SSL certificate file not found: {ssl_cert}")
             logger.info("Disabling SSL. Run with --ssl, --cert and --key to specify valid certificate files.")
@@ -273,16 +287,9 @@ async def run_server():
             use_ssl = False
             ssl_cert = None
             ssl_key = None
-    
+
     try:
         loop = asyncio.get_event_loop()
-
-        # Routing extension integration (V2)
-        routing_extension = config.get_extension('routing')
-        if routing_extension:
-            logger.info("RoutingExtension (V2) detected: using advanced routing from extensions.")
-        else:
-            logger.info("RoutingExtension not found: using legacy routing (locations/reverse_proxy).")
 
         server = AsyncHTTPServer(
             host,
@@ -297,8 +304,8 @@ async def run_server():
             ssl_cert=ssl_cert,
             ssl_key=ssl_key,
             do_check_proxy_availability=not args.skip_proxy_check,
-            routing_extension=routing_extension,  # Передаём расширение, если оно есть
-            default_root=config.default_root  # Передаём флаг для обработки корневого пути
+            routing_extension=routing_extension,
+            default_root=getattr(config, 'default_root', True)
         )
 
         setup_signal_handlers(loop, server)
@@ -331,13 +338,16 @@ async def run_server():
 
     except Exception as e:
         logger.critical(f"Failed to start server: {e}")
+        if isinstance(e, NotImplementedError):
+            logger.critical("You are probably using Windows. PyServe does not support some features on Windows due to limitaions of asyncio library.\nI'm working on it.")
         if isinstance(e, PermissionError):
             logger.warning("Permission denied: Please run the server with sudo privileges (or maybe you should change the default HTTP port in config.yaml)")
         sys.exit(1)
 
 def main():
+    """Main entry point for PyServe CLI"""
     try:
-        asyncio.run(run_server())
+        asyncio.run(run_server()) # TODO: add uvloop support on Unix systems
     except KeyboardInterrupt:
         pass
 
