@@ -51,53 +51,6 @@ Running with specific configuration:
 python run.py -H 0.0.0.0 -p 8080
 ```
 
-**NEW: Vibe-Serving Mode (AI-Generated Content):**
-```bash
-python run.py --vibe-serving
-```
-
-### Command Line Options
-
-| Option | Description |
-|--------|-------------|
-| `-h, --help` | Show help and exit |
-| `-c, --config CONFIG` | Path to configuration file |
-| `-p, --port PORT` | Port to run the server on |
-| `-H, --host HOST` | Host to bind the server to |
-| `-s, --static STATIC` | Directory for static files |
-| `-t, --templates TEMPLATES` | Directory for templates |
-| `-v, --version` | Show version and exit |
-| `-d, --debug` | Enable debug mode |
-| `--ssl` | Enable SSL/HTTPS |
-| `--cert CERT` | SSL certificate file |
-| `--key KEY` | SSL private key file |
-| `--proxy HOST:PORT/PATH` | Configure reverse proxy |
-| `--vibe-serving` | **NEW:** Enable AI-generated content mode |
-| `--skip-proxy-check` | Skip proxy availability check |
-
-## Vibe-Serving: AI-Generated Content
-
-PyServe v0.4.2 introduces **Vibe-Serving** - a revolutionary feature that generates web pages on-the-fly using AI language models.
-
-### How it works:
-1. Configure routes and prompts in `vibeconfig.yaml`
-2. Set your `OPENAI_API_KEY` environment variable
-3. Start with `python run.py --vibe-serving`
-4. Visit any configured route to see AI-generated content
-
-### Example vibeconfig.yaml:
-```yaml
-routes:
-  "/": "Generate a modern landing page for PyServe"
-  "/about": "Create an about page describing the project"
-  "/contact": "Generate a contact page with form"
-
-settings:
-  cache_ttl: 3600
-  model: "gpt-4"
-  timeout: 30
-```
-
 ## Configuration
 
 PyServe supports two configuration formats with **full backward compatibility**:
