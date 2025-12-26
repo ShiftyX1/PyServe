@@ -1,5 +1,7 @@
 # PyServe
 
+THIS REPOSITORY HAVE BEEN ARCHIVED. [CHECK THIS INSTEAD](https://git.pyserve.org/aegis/pyserveX)
+
 PyServe is a modern, async HTTP server written in Python. Originally created for educational purposes, it has evolved into a powerful tool for rapid prototyping and serving web applications with unique features like AI-generated content.
 
 <img src="./images/logo.png" alt="isolated" width="150"/>
